@@ -63,7 +63,6 @@ public class NetEventProcessor {
 		}
 	}
 
-
 	private class ChangeRequest {
 		public static final int REGISTER = 1;
 		public static final int CHANGEOPS = 2;
@@ -94,9 +93,22 @@ public class NetEventProcessor {
 	private List<AsynReader> readers = new LinkedList<AsynReader>();
 	private ByteBuffer readBuffer = ByteBuffer.allocate(8192);
 	private Map<SocketChannel, Connection> conns = new HashMap<SocketChannel, Connection>();
+	private Map<String, Connection> connNameMap = new HashMap<String, Connection>();
 	
 	public NetEventProcessor() throws IOException {
 		selector = SelectorProvider.provider().openSelector();
+	}
+	
+	public void send(String name, byte[] data) {
+		Connection conn = null;
+		synchronized (this.connNameMap) {
+			conn = this.connNameMap.get(name);
+		}
+		
+		if (conn == null) {
+			return;
+		}
+		conn.write(data);
 	}
 	
 	public void start() {
@@ -116,6 +128,10 @@ public class NetEventProcessor {
 							Connection conn = new Connection(change.socket, change.name);
 							synchronized (this.conns) { 
 								this.conns.put(change.socket, conn);
+							}
+							
+							synchronized (this.connNameMap) {
+								this.connNameMap.put(change.name, conn);
 							}
 							break;
 						}
@@ -220,14 +236,16 @@ public class NetEventProcessor {
 		}
 	}
 
-	public void connect(InetAddress server, int port) throws IOException {
+	public String connect(InetAddress server, int port) throws IOException {
 		SocketChannel sockChann = SocketChannel.open();
 		sockChann.configureBlocking(false);
 		sockChann.connect(new InetSocketAddress(server, port));
+		ChangeRequest ch = new ChangeRequest(sockChann, ChangeRequest.REGISTER, SelectionKey.OP_READ);
 		
 		synchronized (this.pendingChanges) {
-			this.pendingChanges.add(new ChangeRequest(sockChann, ChangeRequest.REGISTER, SelectionKey.OP_READ));
+			this.pendingChanges.add(ch);
 		}
+		return ch.name;
 	}
 	
 	public void connect(InetAddress server, int port, String name) throws IOException {
