@@ -30,8 +30,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Iterator;
+import java.util.Set;
 
-public class NetEventProcessor {
+public class NetEventProcessor implements Runnable {
 	
 	private class Connection {
 		public SocketChannel sock;
@@ -48,6 +49,10 @@ public class NetEventProcessor {
 				ByteBuffer buffer = ByteBuffer.wrap(buf);
 				this.pendingData.add(buffer);
 			}
+		}
+		
+		public boolean isEmpty() {
+			return pendingData.isEmpty();
 		}
 		
 		public void flush() throws IOException {
@@ -82,7 +87,10 @@ public class NetEventProcessor {
 			this.socket = socket;
 			this.type = type;
 			this.ops = ops;
-
+			
+			if (name.length() == 0) {
+				this.socket.socket().getRemoteSocketAddress().toString();
+			}
 			this.name = name;
 		}
 	}
@@ -109,9 +117,16 @@ public class NetEventProcessor {
 			return;
 		}
 		conn.write(data);
+		synchronized (this.pendingChanges) {
+			ChangeRequest change = new ChangeRequest(conn.sock, ChangeRequest.CHANGEOPS, SelectionKey.OP_WRITE, name);
+			this.pendingChanges.add(change);
+		}
+		
+		this.selector.wakeup();
 	}
 	
-	public void start() {
+	public void run() {
+		System.out.println("Run the thread");
 		while (true) {
 			try {
 				synchronized(this.pendingChanges) {
@@ -133,6 +148,10 @@ public class NetEventProcessor {
 							synchronized (this.connNameMap) {
 								this.connNameMap.put(change.name, conn);
 							}
+							
+							synchronized (change) {
+								change.notifyAll();
+							}
 							break;
 						}
 					}
@@ -141,6 +160,8 @@ public class NetEventProcessor {
 				
 				this.selector.select();
 
+				Set<SelectionKey> selectedKeySet = this.selector.selectedKeys();
+				int nrElems = selectedKeySet.size();
 				Iterator<SelectionKey> selectedKeys = this.selector.selectedKeys().iterator();
 				while (selectedKeys.hasNext()) {
 					SelectionKey key = (SelectionKey) selectedKeys.next();
@@ -153,6 +174,14 @@ public class NetEventProcessor {
 						this.read(key);
 					} else if (key.isWritable()) {
 						this.write(key);
+					} else if (key.isConnectable()) {
+						SocketChannel socketChannel = (SocketChannel) key.channel();
+						try {
+							socketChannel.finishConnect();
+						} catch (IOException e){
+							key.cancel();
+						}
+						key.interestOps(SelectionKey.OP_READ);
 					}
 				}
 			} catch (Exception e) {
@@ -167,8 +196,9 @@ public class NetEventProcessor {
 		try {
 			conn.flush();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		}
+		if (conn.isEmpty()) {
+			key.interestOps(SelectionKey.OP_READ);
 		}
 	}
 
@@ -237,24 +267,44 @@ public class NetEventProcessor {
 	}
 
 	public String connect(InetAddress server, int port) throws IOException {
-		SocketChannel sockChann = SocketChannel.open();
-		sockChann.configureBlocking(false);
-		sockChann.connect(new InetSocketAddress(server, port));
-		ChangeRequest ch = new ChangeRequest(sockChann, ChangeRequest.REGISTER, SelectionKey.OP_READ);
-		
-		synchronized (this.pendingChanges) {
-			this.pendingChanges.add(ch);
-		}
-		return ch.name;
+		return this.connect(server, port, "");
 	}
 	
-	public void connect(InetAddress server, int port, String name) throws IOException {
+	public String connect(InetAddress server, int port, String name) throws IOException {
 		SocketChannel sockChann = SocketChannel.open();
 		sockChann.configureBlocking(false);
 		sockChann.connect(new InetSocketAddress(server, port));
+		ChangeRequest change = new ChangeRequest(sockChann, ChangeRequest.REGISTER, SelectionKey.OP_CONNECT, name);
 		
 		synchronized (this.pendingChanges) {
-			this.pendingChanges.add(new ChangeRequest(sockChann, ChangeRequest.REGISTER, SelectionKey.OP_READ, name));
+			this.pendingChanges.add(change);
+		}
+		this.selector.wakeup();
+		synchronized (change) {
+			try {
+				change.wait();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		System.out.println("CONNECTED");
+		return change.name;
+	}
+	
+	public static void main(String[] args) {
+		try {
+			NetEventProcessor evtproc = new NetEventProcessor();
+			Thread th = new Thread(evtproc);
+			th.start();
+			byte[] data = {0, 1, 15, 0, 104, 101, 108, 108, 111, 0, 119, 111, 114, 108, 100, 0, 1, 2, 3};
+			evtproc.connect(InetAddress.getLocalHost(), 8964, "server");
+			evtproc.send("server", data);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
+	
 }
