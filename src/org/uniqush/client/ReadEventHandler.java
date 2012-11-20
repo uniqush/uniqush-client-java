@@ -17,6 +17,8 @@
 
 package org.uniqush.client;
 
-public interface AsynReader {
-	void OnDataArrive(String name, byte[] buf);
+public interface ReadEventHandler {
+	void onDataArrive(byte[] buf);
+	
+	void setWriter(Writer writer);
 }

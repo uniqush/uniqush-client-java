@@ -30,9 +30,23 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Iterator;
-import java.util.Set;
 
 public class NetEventProcessor implements Runnable {
+	private class ConnectionWriter implements Writer {
+		
+		private String name;
+		private NetEventProcessor proc;
+
+		public ConnectionWriter(NetEventProcessor proc, String name) {
+			this.name = name;
+			this.proc = proc;
+		}
+		
+		@Override
+		public void write(byte[] buf) {
+			this.proc.send(this.name, buf);
+		}
+	}
 	
 	private class Connection {
 		public SocketChannel sock;
@@ -76,13 +90,7 @@ public class NetEventProcessor implements Runnable {
 		public int type;
 		public int ops;
 		public String name;
-		public ChangeRequest(SocketChannel socket, int type, int ops) {
-			this.socket = socket;
-			this.type = type;
-			this.ops = ops;
-
-			this.name = this.socket.socket().getRemoteSocketAddress().toString();
-		}
+		
 		public ChangeRequest(SocketChannel socket, int type, int ops, String name) {
 			this.socket = socket;
 			this.type = type;
@@ -98,7 +106,7 @@ public class NetEventProcessor implements Runnable {
 	private Selector selector;
 	private List<ChangeRequest> pendingChanges = new LinkedList<ChangeRequest>();
 
-	private List<AsynReader> readers = new LinkedList<AsynReader>();
+	private Map<String, ReadEventHandler> readHandlers = new HashMap<String, ReadEventHandler>();
 	private ByteBuffer readBuffer = ByteBuffer.allocate(8192);
 	private Map<SocketChannel, Connection> conns = new HashMap<SocketChannel, Connection>();
 	private Map<String, Connection> connNameMap = new HashMap<String, Connection>();
@@ -160,8 +168,6 @@ public class NetEventProcessor implements Runnable {
 				
 				this.selector.select();
 
-				Set<SelectionKey> selectedKeySet = this.selector.selectedKeys();
-				int nrElems = selectedKeySet.size();
 				Iterator<SelectionKey> selectedKeys = this.selector.selectedKeys().iterator();
 				while (selectedKeys.hasNext()) {
 					SelectionKey key = (SelectionKey) selectedKeys.next();
@@ -249,21 +255,32 @@ public class NetEventProcessor implements Runnable {
 			}
 			name = conn.name;
 		}
-		synchronized (this.readers) {
-			Iterator<AsynReader> iterator = this.readers.iterator();
+		synchronized (this.readHandlers) {
 			
-			while (iterator.hasNext()) {
-				AsynReader reader = iterator.next();
-				reader.OnDataArrive(name, buf);
+			ReadEventHandler h = this.readHandlers.get(name);
+			if (h == null) {
+				return;
 			}
+			h.onDataArrive(buf);
 		}
 		return;
 	}
 	
-	public void registerReader(AsynReader reader) {
-		synchronized (this.readers) {
-			this.readers.add(reader);
+	public void registerReader(String name, ReadEventHandler handler) {
+		ConnectionWriter writer = null;
+		synchronized (this.connNameMap) {
+			Connection conn = this.connNameMap.get(name);
+			if (conn == null) {
+				return;
+			}
 		}
+
+		writer = new ConnectionWriter(this, name);
+		synchronized (this.readHandlers) {
+			this.readHandlers.put(name, handler);
+		}
+		
+		handler.setWriter(writer);
 	}
 
 	public String connect(InetAddress server, int port) throws IOException {
