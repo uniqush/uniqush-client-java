@@ -19,6 +19,8 @@ package org.uniqush.client;
 
 public interface ReadEventHandler {
 	void onDataArrive(byte[] buf);
-	
+	void onConnectionFail();
+	void onCloseStart();
+	void onClosed();
 	void setWriter(Writer writer);
 }

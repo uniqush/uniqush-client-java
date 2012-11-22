@@ -30,6 +30,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Iterator;
+import java.util.Map.Entry;
 
 public class NetEventProcessor implements Runnable {
 	private class ConnectionWriter implements Writer {
@@ -85,17 +86,29 @@ public class NetEventProcessor implements Runnable {
 	private class ChangeRequest {
 		public static final int REGISTER = 1;
 		public static final int CHANGEOPS = 2;
+		public static final int STOP = 3;
 
 		public SocketChannel socket;
 		public int type;
 		public int ops;
 		public String name;
-		
+		public ReadEventHandler handler;
+
 		public ChangeRequest(SocketChannel socket, int type, int ops, String name) {
 			this.socket = socket;
 			this.type = type;
 			this.ops = ops;
-			
+			if (name.length() == 0) {
+				this.socket.socket().getRemoteSocketAddress().toString();
+			}
+			this.name = name;
+		}
+		
+		public ChangeRequest(SocketChannel socket, int type, int ops, String name, ReadEventHandler handler) {
+			this.socket = socket;
+			this.type = type;
+			this.ops = ops;
+			this.handler = handler;
 			if (name.length() == 0) {
 				this.socket.socket().getRemoteSocketAddress().toString();
 			}
@@ -137,6 +150,7 @@ public class NetEventProcessor implements Runnable {
 		System.out.println("Run the thread");
 		while (true) {
 			try {
+				boolean stop = false;
 				synchronized(this.pendingChanges) {
 					Iterator<ChangeRequest> changes = this.pendingChanges.iterator();
 					while (changes.hasNext()) {
@@ -156,14 +170,24 @@ public class NetEventProcessor implements Runnable {
 							synchronized (this.connNameMap) {
 								this.connNameMap.put(change.name, conn);
 							}
+							if (change.handler != null) {
+								synchronized (this.readHandlers) {
+									this.readHandlers.put(change.name, change.handler);
+								}
+							}
 							
 							synchronized (change) {
 								change.notifyAll();
 							}
 							break;
+						case ChangeRequest.STOP:
+							stop = true;
 						}
 					}
 					this.pendingChanges.clear();
+				}
+				if (stop) {
+					break;
 				}
 				
 				this.selector.select();
@@ -182,17 +206,55 @@ public class NetEventProcessor implements Runnable {
 						this.write(key);
 					} else if (key.isConnectable()) {
 						SocketChannel socketChannel = (SocketChannel) key.channel();
+						Connection conn = this.conns.get(socketChannel);
+						ReadEventHandler handler = this.readHandlers.get(conn.name);
 						try {
 							socketChannel.finishConnect();
 						} catch (IOException e){
 							key.cancel();
+							if (handler != null) {
+								handler.onConnectionFail();
+							}
 						}
 						key.interestOps(SelectionKey.OP_READ);
+						Writer writer = new ConnectionWriter(this, conn.name);
+						handler.setWriter(writer);
 					}
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			} 
+		}
+		
+		synchronized (this.conns) {
+			Iterator<Entry<SocketChannel, Connection>> it = this.conns.entrySet().iterator();
+			while (it.hasNext()) {
+				Entry<SocketChannel, Connection> pairs = it.next();
+				SocketChannel sock = pairs.getKey();
+				Connection conn = pairs.getValue();
+				ReadEventHandler handler = null;
+				synchronized (this.readHandlers) {
+					handler = this.readHandlers.get(conn.name);
+				}
+				if (handler != null) {
+					handler.onCloseStart();
+				}
+				try {
+					sock.close();
+				} catch (IOException e) {
+				}
+				
+				if (handler != null) {
+					handler.onClosed();
+				}
+			}
+		}
+	}
+	
+	public void stop() {
+		ChangeRequest change = new ChangeRequest(null, ChangeRequest.STOP, 0, "", null);
+		synchronized (this.pendingChanges) {
+			this.pendingChanges.add(change);
 		}
 	}
 	
@@ -266,32 +328,11 @@ public class NetEventProcessor implements Runnable {
 		return;
 	}
 	
-	public void registerReader(String name, ReadEventHandler handler) {
-		ConnectionWriter writer = null;
-		synchronized (this.connNameMap) {
-			Connection conn = this.connNameMap.get(name);
-			if (conn == null) {
-				return;
-			}
-		}
-
-		writer = new ConnectionWriter(this, name);
-		synchronized (this.readHandlers) {
-			this.readHandlers.put(name, handler);
-		}
-		
-		handler.setWriter(writer);
-	}
-
-	public String connect(InetAddress server, int port) throws IOException {
-		return this.connect(server, port, "");
-	}
-	
-	public String connect(InetAddress server, int port, String name) throws IOException {
+	public String connect(InetAddress server, int port, String name, ReadEventHandler handler) throws IOException {
 		SocketChannel sockChann = SocketChannel.open();
 		sockChann.configureBlocking(false);
 		sockChann.connect(new InetSocketAddress(server, port));
-		ChangeRequest change = new ChangeRequest(sockChann, ChangeRequest.REGISTER, SelectionKey.OP_CONNECT, name);
+		ChangeRequest change = new ChangeRequest(sockChann, ChangeRequest.REGISTER, SelectionKey.OP_CONNECT, name, handler);
 		
 		synchronized (this.pendingChanges) {
 			this.pendingChanges.add(change);
@@ -308,20 +349,6 @@ public class NetEventProcessor implements Runnable {
 		
 		System.out.println("CONNECTED");
 		return change.name;
-	}
-	
-	public static void main(String[] args) {
-		try {
-			NetEventProcessor evtproc = new NetEventProcessor();
-			Thread th = new Thread(evtproc);
-			th.start();
-			byte[] data = {0, 1, 15, 0, 104, 101, 108, 108, 111, 0, 119, 111, 114, 108, 100, 0, 1, 2, 3};
-			evtproc.connect(InetAddress.getLocalHost(), 8964, "server");
-			evtproc.send("server", data);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 	
 }
