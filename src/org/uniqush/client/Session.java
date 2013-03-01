@@ -13,11 +13,14 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.RSAPublicKeySpec;
+import java.util.Arrays;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
 
 public class Session implements ReadEventHandler {
 	
@@ -33,6 +36,12 @@ public class Session implements ReadEventHandler {
 	private Writer writer = new NullWriter();
 	private PublicKey pubKey;
 	
+	private Cipher encryptCipher;
+	private Cipher decryptCipher;
+	
+	private int remains = 0;
+	private ByteBuffer unprocessed;
+	
 	public Session(PublicKey pub) {
 		this.pubKey = pub;
 	}
@@ -47,21 +56,43 @@ public class Session implements ReadEventHandler {
 		return 0;
 	}
 	
+	protected void onPackage() {
+		
+	}
+	
 	@Override
 	public void onDataArrive(byte[] buf) {
-		// TODO Auto-generated method stub
-
+		if (buf.length >= this.remains && this.remains > 0) {
+			byte[] head = Arrays.copyOfRange(buf, 0, this.remains);
+			this.unprocessed.put(head);
+			buf = Arrays.copyOfRange(buf, this.remains, buf.length);
+		}
 	}
 
 	@Override
 	public void setWriter(Writer writer) {
 		this.writer = writer;
-		String key = "hello world\n";
-		byte[] input = key.getBytes();
 		Cipher cipher;
 		try {
+			KeyGenerator kgen = KeyGenerator.getInstance("AES");
+			int keysize = 256;
+			kgen.init(keysize);
+			SecretKey symKey = kgen.generateKey();
+			byte[] rawKey = symKey.getEncoded();
+			
+			this.encryptCipher = Cipher.getInstance("AES/CTR/NoPadding", "BC");
+			this.decryptCipher = Cipher.getInstance("AES/CTR/NoPadding", "BC");
+			
+			this.encryptCipher.init(Cipher.ENCRYPT_MODE, symKey);
+			this.decryptCipher.init(Cipher.DECRYPT_MODE, symKey);
+			
+			ByteBuffer buf = ByteBuffer.allocate(32);
+			buf.put(rawKey);
+			
 			cipher = Cipher.getInstance("RSA/None/OAEPWithSHA256AndMGF1Padding", "BC");
 			cipher.init(Cipher.ENCRYPT_MODE, this.pubKey);
+			
+			byte[] input = buf.array();
 			byte[] secret = cipher.doFinal(input);
 			this.writeBytes(secret);
 		} catch (NoSuchAlgorithmException e) {
