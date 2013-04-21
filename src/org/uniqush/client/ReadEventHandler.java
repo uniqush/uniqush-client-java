@@ -18,7 +18,7 @@
 package org.uniqush.client;
 
 public interface ReadEventHandler {
-	void onDataArrive(byte[] buf);
+	int onDataArrive(byte[] buf);
 	void onConnectionFail();
 	void onCloseStart();
 	void onClosed();

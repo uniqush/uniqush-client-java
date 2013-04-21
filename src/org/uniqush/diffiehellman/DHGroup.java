@@ -45,6 +45,16 @@ public class DHGroup {
 	
 	public byte[] computeKey(DHPublicKey pub, DHPrivateKey priv) {
 		BigInteger k = pub.y.modPow(priv.x, this.modulus);
-		return k.toByteArray();
+		byte[] b = k.toByteArray();
+		byte[] ret = new byte[(modulus.bitLength() + 7)/8];
+		
+		int nrZeros = ret.length - b.length;
+		for (int i = 0; i < nrZeros; i++) {
+			ret[i] = 0;
+		}
+		for (int i = 0; i < b.length; i++) {
+			ret[i + nrZeros] = b[i];
+		}
+		return ret;
 	}
 }
