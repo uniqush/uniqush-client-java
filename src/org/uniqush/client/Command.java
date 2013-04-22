@@ -12,6 +12,29 @@ public class Command {
 	private Message msg;
 	private final Charset UTF_8 = Charset.forName("UTF-8");
 	
+	public boolean equals(Command cmd) {
+		if (cmd.type != this.type) {
+			return false;
+		}
+		if (cmd.params != null && this.params != null) {
+			if (!cmd.params.equals(this.params)) {
+				return false;
+			}
+		} else {
+			return false;
+		}
+		if (cmd.msg != null && this.msg != null) {
+			return cmd.msg.equals(this.msg);
+		} else if (cmd.msg == null && this.msg == null) {
+			return true;
+		} else if (cmd.msg == null) {
+			return this.msg.isEmpty();
+		} else if (this.msg == null) {
+			return cmd.msg.isEmpty();
+		}
+		return true;
+	}
+	
 	public Message getMessage() {
 		return this.msg;
 	}
@@ -122,13 +145,16 @@ public class Command {
 			ret[3] = (byte) (0x000000FF & n);
 		}
 		int start = 4;
-		Iterator<byte[]> iter = list.iterator();
-		while (iter.hasNext()) {
-			byte[] data = iter.next();
-			System.arraycopy(data, 0, ret, start, data.length);
-			start += data.length;
-			ret[start] = 0;
-			start++;
+		
+		if (list != null) {
+			Iterator<byte[]> iter = list.iterator();
+			while (iter.hasNext()) {
+				byte[] data = iter.next();
+				System.arraycopy(data, 0, ret, start, data.length);
+				start += data.length;
+				ret[start] = 0;
+				start++;
+			}
 		}
 		if (body != null) {
 			System.arraycopy(body, 0, ret, start, body.length);

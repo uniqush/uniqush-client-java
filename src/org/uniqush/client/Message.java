@@ -26,6 +26,20 @@ public class Message {
 		return this.body;
 	}
 	
+	public boolean isEmpty() {
+		if (this.header != null) {
+			if (this.header.size() > 0) {
+				return false;
+			}
+		}
+		if (this.body != null) {
+			if (this.body.length > 0) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
 	public boolean equals(Message msg) {
 		if (msg.header == null && this.header != null) {
 			return false;
