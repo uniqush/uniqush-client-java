@@ -1,6 +1,8 @@
 package org.uniqush.client;
 
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map.Entry;
 
 public class Message {
 	private HashMap<String, String> header;
@@ -22,6 +24,40 @@ public class Message {
 	
 	public byte[] getBody() {
 		return this.body;
+	}
+	
+	public boolean equals(Message msg) {
+		if (msg.header == null && this.header != null) {
+			return false;
+		} else if (msg.header != null && this.header == null) {
+			return false;
+		} else if (msg.header != null && this.header != null) {
+			if (msg.header.size() != this.header.size()) {
+				return false;
+			}
+			Iterator<Entry<String, String>> iter = this.header.entrySet().iterator();
+			
+			while (iter.hasNext()) {
+				Entry<String, String> entry = iter.next();
+				String key = entry.getKey();
+				String value = entry.getValue();
+				
+				if (!value.equals(msg.header.get(key))) {
+					return false;
+				}
+			}
+		}
+		
+		if (msg.body == null && this.body != null) {
+			return false;
+		} else if (msg.body != null && this.body == null) {
+			return false;
+		} else if (msg.body != null && this.body != null) {
+			if (!msg.body.equals(this.body)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 }

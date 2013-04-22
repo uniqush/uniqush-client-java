@@ -8,9 +8,35 @@ import java.util.Map.Entry;
 
 public class Command {
 	private byte type;
-	private String[] params;
+	private ArrayList<String> params;
 	private Message msg;
 	private final Charset UTF_8 = Charset.forName("UTF-8");
+	
+	public Message getMessage() {
+		return this.msg;
+	}
+	
+	public Command(int type, Message msg) {
+		this.type = (byte) type;
+		this.msg = msg;
+	}
+	
+	public String getParameter(int i) {
+		if (this.params == null) {
+			return null;
+		}
+		if (i >= this.params.size()) {
+			return null;
+		}
+		return this.params.get(i);
+	}
+	
+	public void AppendParameter(String p) {
+		if (this.params == null) {
+			this.params = new ArrayList<String>(4);
+		}
+		this.params.add(p);
+	}
 	
 	private int cutString(byte[] data, int start) {
 		for (int i = start; i < data.length; i++) {
@@ -21,7 +47,14 @@ public class Command {
 		return data.length;
 	}
 	
-	public byte[] Marshal() {
+	public int nrParameters() {
+		if (this.params == null) {
+			return 0;
+		}
+		return this.params.size();
+	}
+	
+	public byte[] marshal() {
 		HashMap<String, String> header = null;
 		byte[] body = null;
 		
@@ -29,7 +62,7 @@ public class Command {
 		int nrEntities = 0;
 		
 		if (this.params != null) {
-			nrEntities += this.params.length;
+			nrEntities += this.params.size();
 		}
 		
 		if (this.msg != null) {
@@ -48,8 +81,10 @@ public class Command {
 			list = new ArrayList<byte[]>(nrEntities);
 
 			if (this.params != null) {
-				for (int i = 0; i < this.params.length; i++) {
-					byte[] p = this.params[i].getBytes(UTF_8);
+				Iterator<String> iter = this.params.iterator();
+				while(iter.hasNext()) {
+					String param = iter.next();
+					byte[] p = param.getBytes(UTF_8);
 					nrBytes += p.length + 1;
 					list.add(p);
 				}
@@ -77,7 +112,7 @@ public class Command {
 		
 		ret[0] = this.type;
 		if (this.params != null) {
-			ret[1] = (byte) (0x0000000F & this.params.length);
+			ret[1] = (byte) (0x0000000F & this.params.size());
 			ret[1] = (byte) (ret[1] << 4);
 		}
 		
@@ -114,11 +149,12 @@ public class Command {
 		int start = 4;
 		
 		if (nrParams > 0) {
-			this.params = new String[nrParams];
+			this.params = new ArrayList<String>(nrParams);
 			
 			for (int i = 0; i < nrParams; i++) {
 				int end = cutString(data, start);
-				this.params[i] = new String(data, start, end - start, UTF_8);
+				String p = new String(data, start, end - start, UTF_8);
+				this.params.add(p);
 				start = end + 1;
 			}
 		}
