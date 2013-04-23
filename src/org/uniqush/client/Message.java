@@ -8,6 +8,8 @@ public class Message {
 	private HashMap<String, String> header;
 	private byte[] body;
 	
+	public Message() {
+	}
 	
 	public Message(HashMap<String, String> header, byte[] body) {
 		this.header = header;
@@ -20,6 +22,17 @@ public class Message {
 	
 	public String get(String key) {
 		return this.header.get(key);
+	}
+	
+	public void put(String key, String value) {
+		if (this.header == null) {
+			this.header = new HashMap<String, String>(3);
+		}
+		this.header.put(key, value);
+	}
+	
+	public void put(byte[] body) {
+		this.body = body;
 	}
 	
 	public byte[] getBody() {
