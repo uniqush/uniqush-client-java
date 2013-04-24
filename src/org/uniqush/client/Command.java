@@ -23,7 +23,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
-public class Command {
+class Command {
 	private byte type;
 	private ArrayList<String> params;
 	private Message msg;

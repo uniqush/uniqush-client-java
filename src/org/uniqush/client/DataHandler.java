@@ -17,9 +17,11 @@
 
 package org.uniqush.client;
 
-public interface DataHandler {
-	int onDataArrive(byte[] buf, Writer reply);
-	void onConnectionFail();
-	void onCloseStart();
-	void onClosed();
+import java.io.OutputStream;
+
+interface DataHandler {
+	public void onConnectionFail();
+	public void onCloseStart();
+	public void onClosed();
+	public int onDataArrive(byte[] buf, OutputStream ostream);
 }

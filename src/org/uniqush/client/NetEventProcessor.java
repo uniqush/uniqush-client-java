@@ -23,24 +23,9 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-public class NetEventProcessor implements Runnable {	
+class NetEventProcessor implements Runnable {	
 	private Socket serverSocket;
 	private DataHandler handler;
-	private SocketWriter writer;
-	
-	private class SocketWriter implements Writer {
-		private OutputStream ostream;
-		
-		public SocketWriter(OutputStream ostream) {
-			this.ostream = ostream;
-		}
-		
-		@Override
-		public void write(byte[] data) throws IOException {
-			this.ostream.write(data);
-		}
-		
-	}
 	
 	public NetEventProcessor(String address, int port, DataHandler handler) throws UnknownHostException, IOException {
 		this.connect(address, port, handler);
@@ -49,7 +34,6 @@ public class NetEventProcessor implements Runnable {
 	private void connect(String address, int port, DataHandler handler) throws UnknownHostException, IOException {
 		this.handler = handler;
 		this.serverSocket = new Socket(address, port);
-		this.writer = new SocketWriter(this.serverSocket.getOutputStream());
 	}
 	
 	private int readFull(InputStream istream, byte[] buf) {
@@ -69,16 +53,25 @@ public class NetEventProcessor implements Runnable {
 	}
 	
 	public void write(byte[] data) throws IOException {
-		this.writer.write(data);
+		OutputStream ostream = this.serverSocket.getOutputStream();
+		ostream.write(data);
+	}
+	
+	public void close() throws IOException {
+		this.serverSocket.close();
 	}
 
 	@Override
 	public void run() {
 		try {
+			OutputStream ostream = this.serverSocket.getOutputStream();
 			InputStream istream = this.serverSocket.getInputStream();
 			byte[] buf = null;
 			do {
-				int n = this.handler.onDataArrive(buf, this.writer);
+				int n = this.handler.onDataArrive(buf, ostream);
+				if (n <= 0) {
+					break;
+				}
 				buf = new byte[n];
 				int i = this.readFull(istream, buf);
 				if (i != n) {
