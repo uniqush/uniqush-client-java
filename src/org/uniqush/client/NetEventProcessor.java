@@ -21,9 +21,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
+import java.math.BigInteger;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
+import java.security.spec.RSAPublicKeySpec;
 
 import org.bouncycastle.openssl.PEMReader;
 
@@ -99,29 +106,38 @@ class NetEventProcessor implements Runnable {
 	}
 	
 	public static void main(String[] argv) {
-		String pubkeyStr = "-----BEGIN PUBLIC KEY-----\n" +
-				"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAib4l9JSLFSiPusrk2Cxb\n" +
-				"km0oXQeC2wh/QDcnFf8g9PdrPhlKVobof9rNJt6XXjGiytkubmRMFlvC47NJcMvP\n" +
-				"z0IvY0amSACUqPE20I4CLhIZQ2kraWBigC36x6SfTlZVDlRsfzVcwb/THo0e6KNx\n" +
-				"WbrF3Y3/wvDZvDsT7gBULcz0eV+3/E1Dc4c+OBJnKgY+qXmGbzMXan0v7r6Cgypp\n" +
-				"oQLOXVVz/9uRBJobOuys4DpedRSk6KizZ+P1UU5MGpN4vum9L+f/iguDzohU/tLo\n" +
-				"XG+LuRwT8rTM32CGSJNoBC2Pd6YuhfxxJVWf1wmvdKoJYsi050eGySoe4rdM+dD9\n" +
-				"uQIDAQAB\n" +
-				"-----END PUBLIC KEY-----";
-		StringReader pubreader = new StringReader(pubkeyStr);
-		PEMReader pemReader = new PEMReader(pubreader);
-		RSAPublicKey pubkey = null;
+		BigInteger modulus = new BigInteger("17388413383649711290254825310339272211319767525363227404074762677568514182143042061437868796167591657550511002079944736281939887225873458139996723826487428401781326377898963252196351565707602724215593767581359596805150972910866410145077679809190513515791700412131297152963158161216863933118912237764396054712362877219981113432778260759907285938711897115187091296093563327334234754294283390985106557355671509013541665508032935881514071942658154269549566084778139622274561728679270315969220599430415442568612476273211334694395646067337896362196452349792104972786584396268761019495750809374141828098785614861562903854521");
+		BigInteger exp = new BigInteger("65537");
+		KeySpec keyspec = new RSAPublicKeySpec(modulus, exp);
+		KeyFactory kf = null;
 		try {
-			Object obj = pemReader.readObject();
-			pemReader.close();
-			if (!(obj instanceof RSAPublicKey)) {
-				return;
-			}
-			pubkey = (RSAPublicKey) obj;
-		} catch (IOException e) {
+			kf = KeyFactory.getInstance("RSA");
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		System.out.println(pubkey.toString());
+		PublicKey pub = null;
+		try {
+			pub = kf.generatePublic(keyspec);
+		} catch (InvalidKeySpecException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		System.out.println(pub.toString());
+		
+		CommandReader cmdrd = new CommandReader(null, (RSAPublicKey) pub);
+		NetEventProcessor proc = null;
+		try {
+			 proc = new NetEventProcessor("127.0.0.1", 8964, cmdrd);
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		proc.run();
 	}
 
 }

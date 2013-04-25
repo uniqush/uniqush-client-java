@@ -1,7 +1,13 @@
 package org.uniqush.client;
 
 import java.io.OutputStream;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Set;
 
 class KeyExchangingState implements State {
 	private CommandHandler handler;
@@ -32,7 +38,8 @@ class KeyExchangingState implements State {
 			return;
 		}
 		for (int i = 0; i < data.length; i++) {
-			System.out.printf("%d ", data[i]);
+			int d = data[i] & 0xFF;
+			System.out.printf("%d ", d);
 		}
 	}
 
@@ -62,6 +69,29 @@ class KeyExchangingState implements State {
 		System.out.printf("\nnonce: ");
 		printBytes(nonce);
 		System.out.println();
+		try {
+			Signature sign = Signature.getInstance("SHA256WITHRSA/PSS", "BC");
+			sign.initVerify(this.rsaPub);
+			sign.update(dhpub);
+			boolean goodsign = sign.verify(data, DH_PUBLIC_KEY_LENGTH + 1, siglen);
+			
+			if (!goodsign) {
+				this.nextLen = 0;
+				return this;
+			}
+		} catch (NoSuchAlgorithmException e) {
+			this.nextLen = 0;
+			return this;
+		} catch (NoSuchProviderException e) {
+			this.nextLen = 0;
+			return this;
+		} catch (InvalidKeyException e) {
+			this.nextLen = 0;
+			return this;
+		} catch (SignatureException e) {
+			this.nextLen = 0;
+			return this;
+		}
 		return null;
 	}
 
