@@ -20,8 +20,12 @@ package org.uniqush.client;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.interfaces.RSAPublicKey;
+
+import org.bouncycastle.openssl.PEMReader;
 
 class NetEventProcessor implements Runnable {	
 	private Socket serverSocket;
@@ -92,6 +96,32 @@ class NetEventProcessor implements Runnable {
 		this.handler.onClosed();
 		this.serverSocket = null;
 
+	}
+	
+	public static void main(String[] argv) {
+		String pubkeyStr = "-----BEGIN PUBLIC KEY-----\n" +
+				"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAib4l9JSLFSiPusrk2Cxb\n" +
+				"km0oXQeC2wh/QDcnFf8g9PdrPhlKVobof9rNJt6XXjGiytkubmRMFlvC47NJcMvP\n" +
+				"z0IvY0amSACUqPE20I4CLhIZQ2kraWBigC36x6SfTlZVDlRsfzVcwb/THo0e6KNx\n" +
+				"WbrF3Y3/wvDZvDsT7gBULcz0eV+3/E1Dc4c+OBJnKgY+qXmGbzMXan0v7r6Cgypp\n" +
+				"oQLOXVVz/9uRBJobOuys4DpedRSk6KizZ+P1UU5MGpN4vum9L+f/iguDzohU/tLo\n" +
+				"XG+LuRwT8rTM32CGSJNoBC2Pd6YuhfxxJVWf1wmvdKoJYsi050eGySoe4rdM+dD9\n" +
+				"uQIDAQAB\n" +
+				"-----END PUBLIC KEY-----";
+		StringReader pubreader = new StringReader(pubkeyStr);
+		PEMReader pemReader = new PEMReader(pubreader);
+		RSAPublicKey pubkey = null;
+		try {
+			Object obj = pemReader.readObject();
+			pemReader.close();
+			if (!(obj instanceof RSAPublicKey)) {
+				return;
+			}
+			pubkey = (RSAPublicKey) obj;
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		System.out.println(pubkey.toString());
 	}
 
 }
