@@ -13,6 +13,7 @@ class KeyExchangingState implements State {
 	private CommandHandler handler;
 	private int nextLen;
 	private RSAPublicKey rsaPub;
+	private String failReason;
 	
 	final static int ENCR_KEY_LENGTH = 32;
 	final static int AUTH_KEY_LENGTH = 32;
@@ -27,6 +28,7 @@ class KeyExchangingState implements State {
 	public KeyExchangingState(CommandHandler handler, RSAPublicKey rsaPub) {
 		this.handler = handler;
 		this.rsaPub = rsaPub;
+		this.failReason = "";
 		
 		int siglen = (rsaPub.getModulus().bitLength() + 7)/8;
 		this.nextLen = DH_PUBLIC_KEY_LENGTH + siglen + NONCE_LENGTH + 1;
@@ -48,10 +50,12 @@ class KeyExchangingState implements State {
 		int siglen = (rsaPub.getModulus().bitLength() + 7)/8;
 		if (data.length != DH_PUBLIC_KEY_LENGTH + siglen + NONCE_LENGTH + 1) {
 			this.nextLen = 0;
+			this.failReason = "bad data chunk";
 			return this;
 		}
 		if (data[0] != CURRENT_PROTOCOL_VERSION) {
 			this.nextLen = 0;
+			this.failReason = "incompatible protocol version";
 			return this;
 		}
 		
@@ -77,19 +81,24 @@ class KeyExchangingState implements State {
 			
 			if (!goodsign) {
 				this.nextLen = 0;
+				this.failReason = "bad signature from the server";
 				return this;
 			}
 		} catch (NoSuchAlgorithmException e) {
 			this.nextLen = 0;
+			this.failReason = e.getLocalizedMessage();
 			return this;
 		} catch (NoSuchProviderException e) {
 			this.nextLen = 0;
+			this.failReason = e.getLocalizedMessage();
 			return this;
 		} catch (InvalidKeyException e) {
 			this.nextLen = 0;
+			this.failReason = e.getLocalizedMessage();
 			return this;
 		} catch (SignatureException e) {
 			this.nextLen = 0;
+			this.failReason = e.getLocalizedMessage();
 			return this;
 		}
 		return null;
@@ -106,7 +115,7 @@ class KeyExchangingState implements State {
 	@Override
 	public void onClosed() {
 		if (this.handler != null) {
-			this.handler.OnKeyExchangeError();
+			this.handler.OnKeyExchangeError(this.failReason);
 		}
 	}
 
