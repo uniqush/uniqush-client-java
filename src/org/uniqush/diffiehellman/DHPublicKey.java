@@ -10,10 +10,16 @@ public class DHPublicKey {
 	}
 	
 	public DHPublicKey(byte[] data) {
-		this.y = new BigInteger(data);
+		this.y = new BigInteger(1, data);
 	}
 	
 	public byte[] toByteArray() {
-		return this.y.toByteArray();
+		byte[] b = this.y.toByteArray();
+		if (b[0] == 0) {
+		    byte[] tmp = new byte[b.length - 1];
+		    System.arraycopy(b, 1, tmp, 0, tmp.length);
+		    b = tmp;
+		}
+		return b;
 	}
 }

@@ -1,13 +1,19 @@
 package org.uniqush.client;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
-import java.util.Set;
+
+import org.uniqush.diffiehellman.DHGroup;
+import org.uniqush.diffiehellman.DHPrivateKey;
+import org.uniqush.diffiehellman.DHPublicKey;
 
 class KeyExchangingState implements State {
 	private CommandHandler handler;
@@ -44,7 +50,7 @@ class KeyExchangingState implements State {
 			System.out.printf("%d ", d);
 		}
 	}
-
+	
 	@Override
 	public State transit(byte[] data, OutputStream ostream) {
 		int siglen = (rsaPub.getModulus().bitLength() + 7)/8;
@@ -72,7 +78,8 @@ class KeyExchangingState implements State {
 		printBytes(sig);
 		System.out.printf("\nnonce: ");
 		printBytes(nonce);
-		System.out.println();
+		DHPrivateKey dhpriv = null;
+		DHGroup group = null;
 		try {
 			Signature sign = Signature.getInstance("SHA256WITHRSA/PSS", "BC");
 			sign.initVerify(this.rsaPub);
@@ -84,6 +91,8 @@ class KeyExchangingState implements State {
 				this.failReason = "bad signature from the server";
 				return this;
 			}
+			group = DHGroup.getGroup(DH_GROUP_ID);
+			dhpriv = group.generatePrivateKey(new SecureRandom());
 		} catch (NoSuchAlgorithmException e) {
 			this.nextLen = 0;
 			this.failReason = e.getLocalizedMessage();
@@ -100,6 +109,43 @@ class KeyExchangingState implements State {
 			this.nextLen = 0;
 			this.failReason = e.getLocalizedMessage();
 			return this;
+		}
+		DHPublicKey mypub = dhpriv.getPublicKey();
+		System.out.printf("\nmy dh pub: ");
+		printBytes(mypub.toByteArray());
+		System.out.println();
+		DHPublicKey serverpub = new DHPublicKey(dhpub);
+		byte[] masterKey = group.computeKey(serverpub, dhpriv);
+		System.out.printf("\nmasterkey: ");
+		printBytes(masterKey);
+		System.out.println();
+		
+		byte[] keyExReply = new byte[DH_PUBLIC_KEY_LENGTH + AUTH_KEY_LENGTH + 1];
+		keyExReply[0] = CURRENT_PROTOCOL_VERSION;
+		byte[] mydhpubBytes = mypub.toByteArray();
+		System.arraycopy(mydhpubBytes, 0, keyExReply, 1, DH_PUBLIC_KEY_LENGTH);
+		
+		KeySet ks = new KeySet(masterKey, nonce);
+		
+		try {
+			byte[] clienthmac = ks.clientHmac(mydhpubBytes);
+			System.out.printf("\nclienthmac: ");
+			printBytes(clienthmac);
+			System.out.println();
+			
+			System.arraycopy(clienthmac, 0, keyExReply, DH_PUBLIC_KEY_LENGTH + 1, AUTH_KEY_LENGTH);
+		} catch (InvalidKeyException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try {
+			ostream.write(keyExReply);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		return null;
 	}
