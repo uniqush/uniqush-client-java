@@ -1,6 +1,8 @@
 package org.uniqush.client;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.math.BigInteger;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -11,12 +13,14 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.RSAPublicKeySpec;
+import java.util.concurrent.Semaphore;
 
 import javax.security.auth.login.LoginException;
 
 public class MessageCenter implements Runnable {
 	private Socket serverSocket;
 	private ConnectionHandler handler;
+	private Semaphore writeLock;
 	
 	public MessageCenter(String address,
 			int port,
@@ -28,12 +32,67 @@ public class MessageCenter implements Runnable {
 		ConnectionHandler handler = new ConnectionHandler(null, service, username, token, pub);
 		handler.handshake(this.serverSocket.getInputStream(), this.serverSocket.getOutputStream());
 		this.handler = handler;
+		this.writeLock = new Semaphore(1);
 	}
 
+	private int readFull(InputStream istream, byte[] buf, int length) {
+		int n = 0;
+		while (n < length) {
+			try {
+				int i = istream.read(buf, n, length - n);
+				if (i < 0) {
+					return n;
+				}
+				n += i;
+			} catch (IOException e) {
+				return n;
+			}
+		}
+		return n;
+	}
+	
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
-
+		InputStream istream = null;
+		OutputStream ostream = null;
+		
+		try {
+			istream = this.serverSocket.getInputStream();
+			ostream = this.serverSocket.getOutputStream();
+		} catch (IOException e) {
+			this.handler.onError(e);
+			return;
+		}
+		do {
+			int len = this.handler.nextChunkLength();
+			if (len <= 0) {
+				break;
+			}
+			byte[] data = new byte[len];
+			int n = readFull(istream, data, len);
+			if (n != len) {
+				break;
+			}
+			byte[] reply = this.handler.onData(data);
+			if (reply != null && reply.length > 0) {
+				try {
+					this.writeLock.acquire();
+					ostream.write(reply);
+					this.writeLock.release();
+				} catch (Exception e) {
+					this.writeLock.release();
+					this.handler.onError(e);
+					break;
+				}
+			}
+		} while (true);
+		this.handler.onCloseStart();
+		try {
+			this.serverSocket.close();
+		} catch (IOException e) {
+			// WTF. What do you want me to do?
+		}
+		this.handler.onClosed();
 	}
 	
 	public static void main(String[] argv) {

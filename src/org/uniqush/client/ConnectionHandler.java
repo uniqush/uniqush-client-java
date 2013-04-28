@@ -24,15 +24,6 @@ import org.uniqush.diffiehellman.DHGroup;
 import org.uniqush.diffiehellman.DHPrivateKey;
 import org.uniqush.diffiehellman.DHPublicKey;
 
-/*
-interface ConnectionHandler {
-	public int handshake(InputStream istream, OutputStream ostream, String service, String username, String token);
-	public int onData(byte[] input, ArrayList<byte[]> replies);
-	public byte[] encodeMessageToUsers(String service, String receiver, Message msg);
-	public byte[] encodeMessageToServer(Message msg);
-}
-*/
-
 class ConnectionHandler {
 	final static int ENCR_KEY_LENGTH = 32;
 	final static int AUTH_KEY_LENGTH = 32;
@@ -148,7 +139,7 @@ class ConnectionHandler {
 	//   Header: parameters
 	private final static int CMD_SUBSCRIPTION = 11;
 
-	private CommandHandler handler;
+	private MessageHandler handler;
 	private String service;
 	private String username;
 	private String token;
@@ -245,7 +236,7 @@ class ConnectionHandler {
 		return encrypted;
 	}
 	
-	public ConnectionHandler(CommandHandler handler,
+	public ConnectionHandler(MessageHandler handler,
 			String service,
 			String username,
 			String token,
@@ -275,6 +266,60 @@ class ConnectionHandler {
 		return n;
 	}
 	
+	public void onError(Exception e) {
+		if (this.handler != null) {
+			this.handler.onError(e);
+		}
+	}
+	
+	public void onCloseStart() {
+		if (this.handler != null) {
+			this.handler.onCloseStart();
+		}
+	}
+	
+	public void onClosed() {
+		if (this.handler != null) {
+			this.handler.onClosed();
+		}
+	}
+	
+	private int expectedLen = 0;
+	private byte[] currentCommandPrefix = null;
+	
+	protected byte[] processCommand(Command cmd) {
+		return null;
+	}
+	
+	public int nextChunkLength() {
+		return expectedLen;
+	}
+	
+	public byte[] onData(byte[] data) {
+		if (null == data || data.length != expectedLen) {
+			onError(new StreamCorruptedException("No enough data"));
+			return null;
+		}
+		
+		if (currentCommandPrefix == null) {
+			currentCommandPrefix = data.clone();
+			expectedLen = chunkSize(data);
+			return null;
+		}
+		try {
+			Command cmd = unmarshalCommand(data, currentCommandPrefix);
+			currentCommandPrefix = null;
+			expectedLen = 4;
+			return this.processCommand(cmd);
+		} catch (Exception e) {
+			if (this.handler != null) {
+				this.handler.onError(e);
+			}
+			expectedLen = 0;
+		}
+		return null;
+	}
+	
 	public void handshake(InputStream istream,
 			OutputStream ostream) throws LoginException {
 		int siglen = (rsaPub.getModulus().bitLength() + 7)/8;
@@ -288,10 +333,8 @@ class ConnectionHandler {
 		}
 
 		byte[] dhpub = new byte[DH_PUBLIC_KEY_LENGTH];
-		//byte[] sig = new byte[siglen];
 		byte[] nonce = new byte[NONCE_LENGTH];
 		System.arraycopy(data, 1, dhpub, 0, DH_PUBLIC_KEY_LENGTH);
-		//System.arraycopy(data, DH_PUBLIC_KEY_LENGTH + 1, sig, 0, siglen);
 		System.arraycopy(data, DH_PUBLIC_KEY_LENGTH + siglen + 1, nonce, 0, NONCE_LENGTH);
 
 		try {
@@ -349,6 +392,8 @@ class ConnectionHandler {
 			if (cmd.getType() != CMD_AUTHOK) {
 				throw new LoginException("bad server reply");
 			}
+			
+			expectedLen = 4;
 		} catch (NoSuchAlgorithmException e) {
 			throw new LoginException("cannot find the algorithm: " + e.getMessage());
 		} catch (NoSuchProviderException e) {
@@ -357,6 +402,8 @@ class ConnectionHandler {
 			throw new LoginException("invalid key: " + e.getMessage());
 		} catch (SignatureException e) {
 			throw new LoginException("bad signature: " + e.getMessage());
+		} catch (StreamCorruptedException e) {
+			throw new LoginException("hmac error: " + e.getMessage());
 		} catch (IOException e) {
 			throw new LoginException("io error: " + e.getMessage());
 		} catch (NoSuchPaddingException e) {
