@@ -71,6 +71,10 @@ class Command {
 		return this.params.get(i);
 	}
 	
+	public int getType() {
+		return (int)this.type;
+	}
+	
 	public void AppendParameter(String p) {
 		if (this.params == null) {
 			this.params = new ArrayList<String>(4);

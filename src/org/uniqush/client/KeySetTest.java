@@ -1,7 +1,15 @@
 package org.uniqush.client;
 
 import static org.junit.Assert.*;
+
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.util.Arrays;
+
+import javax.crypto.NoSuchPaddingException;
+
 import org.junit.Test;
 
 public class KeySetTest {
@@ -14,7 +22,25 @@ public class KeySetTest {
 		byte[] serverAuthKey={119,-37,-126,106,-88,-122,-114,-94,-99,-69,12,-25,51,70,-83,5,-3,-126,113,19,-88,-45,-38,83,119,-11,82,-5,-83,53,119,-123};
 		byte[] clientEncrKey={11,-115,-18,-94,79,16,-77,11,30,70,-35,-110,88,100,-91,120,8,76,-104,15,-61,0,76,-41,-64,46,64,62,-33,116,58,49};
 		byte[] clientAuthKey={-122,116,-47,93,-78,72,78,95,-48,-103,14,-8,112,89,122,29,-18,118,-11,25,-49,-40,113,0,-47,-110,-58,8,62,-7,-104,-7};
-		KeySet ks = new KeySet(k, nonce);
+		KeySet ks = null;
+		try {
+			ks = new KeySet(k, nonce);
+		} catch (InvalidKeyException e) {
+			e.printStackTrace();
+			fail("invalid key");
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+			fail("no such algorithm");
+		} catch (NoSuchProviderException e) {
+			e.printStackTrace();
+			fail("no such provider");
+		} catch (NoSuchPaddingException e) {
+			e.printStackTrace();
+			fail("no such padding");
+		} catch (InvalidAlgorithmParameterException e) {
+			e.printStackTrace();
+			fail("bad iv");
+		}
 		
 		if (!Arrays.equals(serverEncrKey, ks.serverEncrKey)) {
 			fail("key error");
