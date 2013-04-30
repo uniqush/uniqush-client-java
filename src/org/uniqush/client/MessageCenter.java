@@ -27,9 +27,10 @@ public class MessageCenter implements Runnable {
 			String service,
 			String username,
 			String token,
-			RSAPublicKey pub) throws UnknownHostException, IOException, LoginException {
+			RSAPublicKey pub,
+			MessageHandler msgHandler) throws UnknownHostException, IOException, LoginException {
 		this.serverSocket = new Socket(address, port);
-		ConnectionHandler handler = new ConnectionHandler(null, service, username, token, pub);
+		ConnectionHandler handler = new ConnectionHandler(msgHandler, service, username, token, pub);
 		handler.handshake(this.serverSocket.getInputStream(), this.serverSocket.getOutputStream());
 		this.handler = handler;
 		this.writeLock = new Semaphore(1);
@@ -114,7 +115,11 @@ public class MessageCenter implements Runnable {
 			e.printStackTrace();
 		}
 		try {
-			MessageCenter center = new MessageCenter("127.0.0.1", 8964, "service", "monnand", "token", (RSAPublicKey)pub);
+			MessageHandler msgHandler = new MessagePrinter();
+			MessageCenter center = new MessageCenter("127.0.0.1", 8964, "service", "monnand", "token", (RSAPublicKey)pub, msgHandler);
+			Thread th = new Thread(center);
+			th.start();
+			th.join();
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -122,6 +127,9 @@ public class MessageCenter implements Runnable {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

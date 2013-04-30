@@ -200,7 +200,11 @@ class Command {
 			
 			for (int i = 0; i < nrParams; i++) {
 				int end = cutString(data, start);
-				String p = new String(data, start, end - start, UTF_8);
+				int length = end - start;
+				if (length < 0 || length > data.length - start) {
+					break;
+				}
+				String p = new String(data, start, length, UTF_8);
 				this.params.add(p);
 				start = end + 1;
 			}
@@ -213,11 +217,19 @@ class Command {
 			for (int i = 0; i < nrHeaders; i++) {
 				int end = cutString(data, start);
 				start = end + 1;
-				String key = new String(data, start, end - start, UTF_8);
+				int length = end - start;
+				if (length < 0 || length > data.length - start) {
+					break;
+				}
+				String key = new String(data, start, length, UTF_8);
 				
 				end = cutString(data, start);
 				start = end + 1;
-				String value = new String(data, start, end - start, UTF_8);
+				length = end - start;
+				if (length < 0 || length > data.length - start) {
+					break;
+				}
+				String value = new String(data, start, length, UTF_8);
 				
 				header.put(key, value);
 			}

@@ -223,10 +223,10 @@ class ConnectionHandler {
 		
 		if (encrypt) {
 			n = keySet.getEncryptedSize(n);
-			
 			int hmacSz = keySet.getEncryptHmacSize();
 			encrypted = new byte[n + hmacSz + prefixSz];
 			keySet.encrypt(encoded, 0, encrypted, prefixSz);
+			printBytes("encrypted:", encrypted, 0, encrypted.length);
 		} else {
 			encrypted = new byte[n + prefixSz];
 			System.arraycopy(encoded, 0, encrypted, prefixSz, n);
@@ -363,7 +363,7 @@ class ConnectionHandler {
 			
 			// Calculate keys and send the message back;
 			keySet = new KeySet(masterKey, nonce);
-			byte[] clienthmac = keySet.clientHmac(mydhpubBytes);			
+			byte[] clienthmac = keySet.clientHmac(mydhpubBytes);		
 			System.arraycopy(clienthmac, 0, keyExReply, DH_PUBLIC_KEY_LENGTH + 1, AUTH_KEY_LENGTH);
 			ostream.write(keyExReply);
 			

@@ -57,7 +57,7 @@ class KeySet {
 	
 	public void decrypt(byte[] input, int inputOffset, byte[] output, int outputOffset) throws ShortBufferException, IllegalBlockSizeException, BadPaddingException, StreamCorruptedException {
 		int hmacSz = getDecryptHmacSize();
-		int len = decryptCipher.doFinal(input, inputOffset, input.length - inputOffset - hmacSz, output, outputOffset);
+		int len = decryptCipher.update(input, inputOffset, input.length - inputOffset - hmacSz, output, outputOffset);
 		byte[] hmac = new byte[hmacSz];
 		serverHmac.reset();
 		serverHmac.update(input, inputOffset, getEncryptedSize(len));
@@ -70,8 +70,9 @@ class KeySet {
 	
 	public void encrypt(byte[] input, int inputOffset, byte[] output, int outputOffset) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException {
 		// encrypt-then-hmac
-		int len = encryptCipher.doFinal(input, inputOffset, input.length - inputOffset, output, outputOffset);
-		
+		int inputLen = input.length - inputOffset;
+		int len = encryptCipher.update(input, inputOffset, inputLen, output, outputOffset);
+		System.out.printf("encrypted len=%d; input length=%d\n", len, inputLen);
 		clientHmac.reset();
 		clientHmac.update(output, outputOffset, len);
 		clientHmac.doFinal(output, outputOffset + len);
@@ -107,8 +108,8 @@ class KeySet {
 		h.reset();
 		
 
-		this.encryptCipher = Cipher.getInstance("AES/CTR/NoPadding", "BC");
-		this.decryptCipher = Cipher.getInstance("AES/CTR/NoPadding", "BC");
+		this.encryptCipher = Cipher.getInstance("AES/CTR/NoPadding");
+		this.decryptCipher = Cipher.getInstance("AES/CTR/NoPadding");
 		
 		byte[] iv = new byte[16];
 		for (int i = 0; i < iv.length; i++) {
