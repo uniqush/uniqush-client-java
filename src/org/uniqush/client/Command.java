@@ -216,21 +216,19 @@ class Command {
 			
 			for (int i = 0; i < nrHeaders; i++) {
 				int end = cutString(data, start);
-				start = end + 1;
 				int length = end - start;
 				if (length < 0 || length > data.length - start) {
 					break;
 				}
 				String key = new String(data, start, length, UTF_8);
-				
-				end = cutString(data, start);
 				start = end + 1;
+				end = cutString(data, start);
 				length = end - start;
 				if (length < 0 || length > data.length - start) {
 					break;
 				}
 				String value = new String(data, start, length, UTF_8);
-				
+				start = end + 1;
 				header.put(key, value);
 			}
 		}

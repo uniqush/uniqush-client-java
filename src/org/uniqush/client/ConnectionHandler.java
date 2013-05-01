@@ -288,6 +288,12 @@ class ConnectionHandler {
 	private byte[] currentCommandPrefix = null;
 	
 	protected byte[] processCommand(Command cmd) {
+		switch (cmd.getType()) {
+		case CMD_DATA:
+			if (handler != null) {
+				handler.onMessageFromServer("", cmd.getMessage());
+			}
+		}
 		return null;
 	}
 	
