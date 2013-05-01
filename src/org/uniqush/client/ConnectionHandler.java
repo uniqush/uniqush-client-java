@@ -291,7 +291,7 @@ class ConnectionHandler {
 		switch (cmd.getType()) {
 		case CMD_DATA:
 			if (handler != null) {
-				handler.onMessageFromServer("", cmd.getMessage());
+				handler.onMessageFromServer(cmd.getParameter(0), cmd.getMessage());
 			}
 		}
 		return null;
