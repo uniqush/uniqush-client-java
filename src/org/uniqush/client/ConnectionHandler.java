@@ -354,7 +354,7 @@ class ConnectionHandler {
 			// Verify the signature from the server. Make sure there is no MITM attack.
 			Signature sign = Signature.getInstance("SHA256WITHRSA/PSS", "BC");
 			sign.initVerify(this.rsaPub);
-			sign.update(dhpub);
+			sign.update(data, 0, DH_PUBLIC_KEY_LENGTH + 1);
 			boolean goodsign = sign.verify(data, DH_PUBLIC_KEY_LENGTH + 1, siglen);
 			
 			if (!goodsign) {
@@ -375,7 +375,7 @@ class ConnectionHandler {
 			
 			// Calculate keys and send the message back;
 			keySet = new KeySet(masterKey, nonce);
-			byte[] clienthmac = keySet.clientHmac(mydhpubBytes);		
+			byte[] clienthmac = keySet.clientHmac(keyExReply, 0, DH_PUBLIC_KEY_LENGTH + 1);		
 			System.arraycopy(clienthmac, 0, keyExReply, DH_PUBLIC_KEY_LENGTH + 1, AUTH_KEY_LENGTH);
 			ostream.write(keyExReply);
 			

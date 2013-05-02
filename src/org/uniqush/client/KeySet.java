@@ -77,6 +77,12 @@ class KeySet {
 		int len = decryptCipher.update(input, inputOffset, input.length - inputOffset - hmacSz, output, outputOffset);
 		byte[] hmac = new byte[hmacSz];
 		serverHmac.reset();
+		
+		byte[] prefix = new byte[2];
+		int datalen = input.length - inputOffset - hmacSz;
+		prefix[0] = (byte)(datalen & 0xFF);
+		prefix[1] = (byte)((datalen >> 8) & 0xFF);
+		serverHmac.update(prefix);
 		serverHmac.update(input, inputOffset, getEncryptedSize(len));
 		serverHmac.doFinal(hmac, 0);
 		if (!bytesEq(hmac, 0, input, inputOffset + getEncryptedSize(len), hmacSz)) {
@@ -90,17 +96,23 @@ class KeySet {
 		int inputLen = input.length - inputOffset;
 		int len = encryptCipher.update(input, inputOffset, inputLen, output, outputOffset);
 		System.out.printf("encrypted len=%d; input length=%d\n", len, inputLen);
+
+		byte[] prefix = new byte[2];
+		prefix[0] = (byte)(inputLen & 0xFF);
+		prefix[1] = (byte)((inputLen >> 8) & 0xFF);
 		clientHmac.reset();
+		clientHmac.update(prefix);
 		clientHmac.update(output, outputOffset, len);
 		clientHmac.doFinal(output, outputOffset + len);
 	}
 	
-	public byte[] clientHmac(byte[] data) throws InvalidKeyException, NoSuchAlgorithmException {
+	public byte[] clientHmac(byte[] data, int offset, int length) throws InvalidKeyException, NoSuchAlgorithmException {
 		Mac h = null;
 		h = Mac.getInstance("HmacSHA256");
 		SecretKey hmacKey = new SecretKeySpec(clientAuthKey, h.getAlgorithm());
 		h.init(hmacKey);
-		return h.doFinal(data);
+		h.update(data, offset, length);
+		return h.doFinal();
 	}
 	
 	public KeySet(byte[] key, byte[] nonce) throws NoSuchAlgorithmException, InvalidKeyException, NoSuchProviderException, NoSuchPaddingException, InvalidAlgorithmParameterException {
