@@ -59,8 +59,7 @@ class ConnectionHandler {
 	// Params:
 	// 0. Digest threshold: -1 always send message directly; Empty: not change
 	// 1. Compression threshold: -1 always compress the data; Empty: not change
-	// 2. Encryption (1 - encrypt; 0 - no ecnrypt; others - not change)
-	// >3. [optional] Digest fields
+	// >2. [optional] Digest fields
 	private final static int CMD_SETTING = 5;
 
 	// Sent from server.
@@ -147,12 +146,10 @@ class ConnectionHandler {
 	private KeySet keySet;
 	
 	private int compressThreshold;
-	private boolean shouldEncrypt;
 	
 	private final static int CMDFLAG_COMPRESS = 1;
-	private final static int CMDFLAG_ENCRYPT = 2;
 	
-	protected void setPrefix(byte[] prefix, int length, boolean compress, boolean encrypt) {
+	protected void setPrefix(byte[] prefix, int length, boolean compress) {
 		if (prefix.length < 4) {
 			return;
 		}
@@ -167,9 +164,6 @@ class ConnectionHandler {
 		if (compress) {
 			prefix[2] |= CMDFLAG_COMPRESS;
 		}
-		if (encrypt) {
-			prefix[2] |= CMDFLAG_ENCRYPT;
-		}
 	}
 	
 	protected int chunkSize(byte[] prefix) {
@@ -178,9 +172,7 @@ class ConnectionHandler {
 		length = length << 8;
 		length |= prefix[0];
 		
-		if ((prefix[2] & CMDFLAG_ENCRYPT) != (byte) 0) {
-			length += keySet.getDecryptHmacSize();
-		}
+		length += keySet.getDecryptHmacSize();
 		return length;
 	}
 	
@@ -194,13 +186,11 @@ class ConnectionHandler {
 	
 	protected Command unmarshalCommand(byte[] encrypted, byte[] prefix) throws ShortBufferException, IllegalBlockSizeException, BadPaddingException, IOException {
 		byte[] encoded = encrypted;
-		
-		if ((prefix[2] & CMDFLAG_ENCRYPT) != (byte) 0) {
-			int hmaclen = keySet.getDecryptHmacSize();
-			int len = keySet.getDecryptedSize(encrypted.length - hmaclen);
-			encoded = new byte[len];
-			keySet.decrypt(encrypted, 0, encoded, 0);
-		}
+
+		int hmaclen = keySet.getDecryptHmacSize();
+		int len = keySet.getDecryptedSize(encrypted.length - hmaclen);
+		encoded = new byte[len];
+		keySet.decrypt(encrypted, 0, encoded, 0);
 		
 		byte[] data = encoded;
 		if ((prefix[2] & CMDFLAG_COMPRESS) != (byte) 0) {
@@ -232,7 +222,7 @@ class ConnectionHandler {
 			System.arraycopy(encoded, 0, encrypted, prefixSz, n);
 		}
 		
-		setPrefix(encrypted, n, compress, encrypt);
+		setPrefix(encrypted, n, compress);
 		return encrypted;
 	}
 	
@@ -247,7 +237,6 @@ class ConnectionHandler {
 		this.token = token;
 		this.rsaPub = pub;
 		this.compressThreshold = 512;
-		this.shouldEncrypt = true;
 	}
 	
 	private int readFull(InputStream istream, byte[] buf, int length) {
