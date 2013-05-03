@@ -166,21 +166,14 @@ class ConnectionHandler {
 	
 	private final static int CMDFLAG_COMPRESS = 1;
 	
-	protected void setPrefix(byte[] prefix, int length, boolean compress) {
-		if (prefix.length < 4) {
+	protected void setPrefix(byte[] prefix, int length) {
+		if (prefix.length < 2) {
 			return;
 		}
 		
 		// Command Length: little endian
 		prefix[0] = (byte)(length & 0xFF);
 		prefix[1] = (byte)(length & 0xFF00);
-		
-		// Flag: little endian
-		prefix[2] = 0;
-		prefix[3] = 0;
-		if (compress) {
-			prefix[2] |= CMDFLAG_COMPRESS;
-		}
 	}
 	
 	protected int chunkSize(byte[] prefix) {
@@ -202,44 +195,44 @@ class ConnectionHandler {
 	}
 	
 	protected Command unmarshalCommand(byte[] encrypted, byte[] prefix) throws ShortBufferException, IllegalBlockSizeException, BadPaddingException, IOException {
-		byte[] encoded = encrypted;
-
 		int hmaclen = keySet.getDecryptHmacSize();
 		int len = keySet.getDecryptedSize(encrypted.length - hmaclen);
-		encoded = new byte[len];
+		byte[] encoded = new byte[len];
 		keySet.decrypt(encrypted, 0, encoded, 0);
 		
-		byte[] data = encoded;
-		if ((prefix[2] & CMDFLAG_COMPRESS) != (byte) 0) {
-			data = Snappy.uncompress(encoded);
+		byte[] data = new byte[encoded.length - 1];
+		System.arraycopy(encoded, 1, data, 0, encoded.length - 1);
+		if ((encoded[0] & CMDFLAG_COMPRESS) != (byte) 0) {
+			data = Snappy.uncompress(data);
 		}
 		Command cmd = new Command(data);
 		return cmd;
 	}
 	
-	protected byte[] marshalCommand(Command cmd, boolean compress, boolean encrypt) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
+	protected byte[] marshalCommand(Command cmd, boolean compress) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
 		byte[] data = cmd.marshal();
-		byte[] encoded = data;
+		byte[] compressed = data;
 
 		if (compress) {
-			encoded = Snappy.compress(data);
+			compressed = Snappy.compress(data);
 		}
+		
+		byte[] encoded = new byte[compressed.length + 1];
+		// clear the flag field.
+		encoded[0] = 0;
+		if (compress) {
+			encoded[0] |= CMDFLAG_COMPRESS;
+		}
+		System.arraycopy(compressed, 0, encoded, 1, compressed.length);
 		int n = encoded.length;
-		int prefixSz = 4;
-		byte[] encrypted = encoded;
+		int prefixSz = 2;
 		
-		if (encrypt) {
-			n = keySet.getEncryptedSize(n);
-			int hmacSz = keySet.getEncryptHmacSize();
-			encrypted = new byte[n + hmacSz + prefixSz];
-			keySet.encrypt(encoded, 0, encrypted, prefixSz);
-			printBytes("encrypted:", encrypted, 0, encrypted.length);
-		} else {
-			encrypted = new byte[n + prefixSz];
-			System.arraycopy(encoded, 0, encrypted, prefixSz, n);
-		}
+		n = keySet.getEncryptedSize(n);
+		int hmacSz = keySet.getEncryptHmacSize();
+		byte[] encrypted = new byte[n + hmacSz + prefixSz];
 		
-		setPrefix(encrypted, n, compress);
+		keySet.encrypt(encoded, 0, encrypted, prefixSz);
+		setPrefix(encrypted, n);
 		return encrypted;
 	}
 	
@@ -321,7 +314,7 @@ class ConnectionHandler {
 		try {
 			Command cmd = unmarshalCommand(data, currentCommandPrefix);
 			currentCommandPrefix = null;
-			expectedLen = 4;
+			expectedLen = 2;
 			return this.processCommand(cmd);
 		} catch (Exception e) {
 			if (this.handler != null) {
@@ -384,17 +377,16 @@ class ConnectionHandler {
 			authCmd.AppendParameter(username);
 			authCmd.AppendParameter(token);
 			
-			byte[] authData = marshalCommand(authCmd, false, true);
+			byte[] authData = marshalCommand(authCmd, false);
 			ostream.write(authData);
 			
 			// reuse the authData as prefix
-			n = readFull(istream, authData, 4);
-			if (n != 4) {
+			n = readFull(istream, authData, 2);
+			if (n != 2) {
 				throw new LoginException("no enough data");
 			}
 			
 			n = chunkSize(authData);
-			
 			byte[] chunk = new byte[n];
 			int len = readFull(istream, chunk, n);
 			if (len != n) {
@@ -405,7 +397,7 @@ class ConnectionHandler {
 				throw new LoginException("bad server reply");
 			}
 			
-			expectedLen = 4;
+			expectedLen = 2;
 		} catch (NoSuchAlgorithmException e) {
 			throw new LoginException("cannot find the algorithm: " + e.getMessage());
 		} catch (NoSuchProviderException e) {
