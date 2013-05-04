@@ -21,6 +21,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Map.Entry;
 
 class Command {
@@ -206,7 +207,7 @@ class Command {
 	}
 	
 	public byte[] marshal() {
-		HashMap<String, String> header = null;
+		Map<String, String> header = null;
 		byte[] body = null;
 		
 		int nrBytes = 4;

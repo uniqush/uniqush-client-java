@@ -19,21 +19,22 @@ package org.uniqush.client;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Map.Entry;
 
 public class Message {
-	private HashMap<String, String> header;
+	private Map<String, String> header;
 	private byte[] body;
 	
 	public Message() {
 	}
 	
-	public Message(HashMap<String, String> header, byte[] body) {
+	public Message(Map<String, String> header, byte[] body) {
 		this.header = header;
 		this.body = body;
 	}
 	
-	public HashMap<String, String> getHeader() {
+	public Map<String, String> getHeader() {
 		return this.header;
 	}
 	
