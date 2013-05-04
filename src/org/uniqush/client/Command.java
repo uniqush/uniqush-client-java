@@ -24,6 +24,113 @@ import java.util.Iterator;
 import java.util.Map.Entry;
 
 class Command {
+	
+	
+	// Params:
+	// 0. [optional] The Id of the message
+	public final static int CMD_DATA = 0;
+
+	// Params:
+	// 0. [optional] The Id of the message
+	public final static int CMD_EMPTY = 1;
+
+	// Sent from client.
+	//
+	// Params
+	// 0. service name
+	// 1. username
+	public final static int CMD_AUTH = 2;
+
+	public final static int CMD_AUTHOK = 3;
+	public final static int CMD_BYE = 4;
+
+	// Sent from client.
+	// Telling the server about its perference.
+	//
+	// Params:
+	// 0. Digest threshold: -1 always send message directly; Empty: not change
+	// 1. Compression threshold: -1 always compress the data; Empty: not change
+	// >2. [optional] Digest fields
+	public final static int CMD_SETTING = 5;
+
+	// Sent from server.
+	// Telling the client an
+	// arrival of a message.
+	//
+	// Params:
+	// 0. Size of the message
+	// 1. The id of the message
+	//
+	// Message.Header:
+	// Other digest info
+	public final static int CMD_DIGEST = 6;
+
+	// Sent from client.
+	// Telling the server which cached
+	// message it wants to retrive.
+	//
+	// Params:
+	// 0. The message id
+	public final static int CMD_MSG_RETRIEVE = 7;
+
+	// Sent from client.
+	// Telling the server to forward a
+	// message to another user.
+	//
+	// Params:
+	// 0. TTL
+	// 1. Reciever's name
+	// 2. [optional] Reciever's service name.
+	//	    If empty, then same service as the client
+	public final static int CMD_FWD_REQ = 8;
+
+	// Sent from server.
+	// Telling the client the mssage
+	// is originally from another user.
+	//
+	// Params:
+	// 0. Sender's name
+	// 1. [optional] Sender's service name.
+	//	    If empty, then same service as the client
+	// 2. [optional] The Id of the message in the cache.
+	public final static int CMD_FWD = 9;
+
+	// Sent from client.
+	//
+	// Params:
+	// 0. 1: visible; 0: invisible;
+	//
+	// If a client if invisible to the server,
+	// then sending any message to this client will
+	// not be considered as a message.
+	//
+	// Well... Imagine a scenario:
+	//
+	// Alice has two devices.
+	//
+	// If the app on any device is online, then any message
+	// will be delivered to the device and no notification
+	// will be pushed to other devices.
+	//
+	// However, if the app is "invisible" to the server,
+	// then it will be considered as off online even if
+	// there is a connection between the server and the client.
+	//
+	// (It is only considered as off line when we want to know if
+	// we should push a notification. But it counts for other purpose,
+	// say, number of connections under the user.)
+	public final static int CMD_SET_VISIBILITY = 10;
+
+	// Sent from client
+	//
+	// Params:
+	//   0. "1" (as ASCII character, not integer) means subscribe; "0" means unsubscribe. No change on others.
+	// Message:
+	//   Header: parameters
+	public final static int CMD_SUBSCRIPTION = 11;
+
+	public final static int CMD_NR_CMDS = 12;
+	
 	private byte type;
 	private ArrayList<String> params;
 	private Message msg;
