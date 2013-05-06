@@ -19,11 +19,35 @@ package org.uniqush.client;
 
 import java.util.ArrayList;
 
-interface State {
-	public int chunkSize();
-	public State transit(byte[] data, ArrayList<byte[]> reply);
+abstract class State {
+	protected MessageHandler handler;
+	protected String service;
+	protected String username;
+	
+	public State(MessageHandler handler, String service, String username) {
+		this.handler = handler;
+		this.service = service;
+		this.username = username;
+	}
+	
+	abstract public int chunkSize();
+	abstract public State transit(byte[] data, ArrayList<byte[]> reply);
 
-	public void onError(Exception e);
-	public void onCloseStart();
-	public void onClosed();
+	public void onError(Exception e) {
+		if (this.handler != null) {
+			this.handler.onError(e);
+		}
+	}
+
+	public void onCloseStart() {
+		if (this.handler != null) {
+			this.handler.onCloseStart();
+		}
+	}
+
+	public void onClosed() {
+		if (this.handler != null) {
+			this.handler.onClosed();
+		}
+	}
 }

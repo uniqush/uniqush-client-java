@@ -1,43 +1,41 @@
 package org.uniqush.client;
 
+import java.io.StreamCorruptedException;
 import java.util.ArrayList;
 
-class ReadingChunkSizeState implements State {
+class ReadingChunkSizeState extends State {
+	private KeySet keySet;
 	
-	MessageHandler handler;
-	
-	public ReadingChunkSizeState(MessageHandler handler) {
-		this.handler = handler;
+	public ReadingChunkSizeState(MessageHandler handler, KeySet keyset, String service, String username) {
+		super(handler, service, service);
+		this.keySet = keyset;
 	}
 
 	@Override
 	public int chunkSize() {
 		return 2;
 	}
+	
+
+	protected int chunkSize(byte[] prefix) {
+		int length = 0;
+		length = prefix[1];
+		length = length << 8;
+		length |= prefix[0];
+		
+		length += keySet.getDecryptHmacSize();
+		return length;
+	}
 
 	@Override
 	public State transit(byte[] data, ArrayList<byte[]> reply) {
-		return null;
-	}
-
-	@Override
-	public void onError(Exception e) {
-		if (this.handler != null) {
-			this.handler.onError(e);
+		reply.clear();
+		if (data == null || data.length != 2) {
+			this.onError(new StreamCorruptedException("No enough data"));
+			return new ErrorState(this.handler, service, username);
 		}
+		
+		int length = this.chunkSize(data);
+		return new ReadingChunkState(this.handler, this.keySet, service, username, length);
 	}
-
-	@Override
-	public void onCloseStart() {
-		if (this.handler != null) {
-			this.handler.onCloseStart();
-		}
-	}
-
-	@Override
-	public void onClosed() {
-		// TODO Auto-generated method stub
-
-	}
-
 }

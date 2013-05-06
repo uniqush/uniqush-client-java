@@ -29,6 +29,8 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
+import java.util.ArrayList;
+
 import org.xerial.snappy.Snappy;
 
 import javax.crypto.BadPaddingException;
@@ -59,9 +61,10 @@ class ConnectionHandler {
 	private RSAPublicKey rsaPub;
 	private KeySet keySet;
 	
+	private State currentState;
+	
 	private int compressThreshold;
 	
-	private final static int CMDFLAG_COMPRESS = 1;
 	
 	protected void setPrefix(byte[] prefix, int length) {
 		if (prefix.length < 2) {
@@ -99,7 +102,7 @@ class ConnectionHandler {
 		
 		byte[] data = new byte[encoded.length - 1];
 		System.arraycopy(encoded, 1, data, 0, encoded.length - 1);
-		if ((encoded[0] & CMDFLAG_COMPRESS) != (byte) 0) {
+		if ((encoded[0] & Command.CMDFLAG_COMPRESS) != (byte) 0) {
 			data = Snappy.uncompress(data);
 		}
 		Command cmd = new Command(data);
@@ -118,7 +121,7 @@ class ConnectionHandler {
 		// clear the flag field.
 		encoded[0] = 0;
 		if (compress) {
-			encoded[0] |= CMDFLAG_COMPRESS;
+			encoded[0] |= Command.CMDFLAG_COMPRESS;
 		}
 		System.arraycopy(compressed, 0, encoded, 1, compressed.length);
 		int n = encoded.length;
@@ -144,6 +147,8 @@ class ConnectionHandler {
 		this.token = token;
 		this.rsaPub = pub;
 		this.compressThreshold = 512;
+		
+		this.currentState = new ErrorState(this.handler, this.service, this.username);
 	}
 	
 	private int readFull(InputStream istream, byte[] buf, int length) {
@@ -163,68 +168,23 @@ class ConnectionHandler {
 	}
 	
 	public void onError(Exception e) {
-		if (this.handler != null) {
-			this.handler.onError(e);
-		}
+		this.currentState.onError(e);
 	}
 	
 	public void onCloseStart() {
-		if (this.handler != null) {
-			this.handler.onCloseStart();
-		}
+		this.currentState.onCloseStart();
 	}
 	
 	public void onClosed() {
-		if (this.handler != null) {
-			this.handler.onClosed();
-		}
-	}
-	
-	private int expectedLen = 0;
-	private byte[] currentCommandPrefix = null;
-	
-	protected byte[] processCommand(Command cmd) {
-		switch (cmd.getType()) {
-		case Command.CMD_DATA:
-			if (handler != null) {
-				handler.onMessageFromServer(cmd.getParameter(0), cmd.getMessage());
-			}
-		}
-		return null;
+		this.currentState.onClosed();
 	}
 	
 	public int nextChunkSize() {
-		return expectedLen;
+		return this.currentState.chunkSize();
 	}
 	
-	public byte[] reply() {
-		return null;
-	}
-	
-	public void onData(byte[] data) {
-		if (null == data || data.length != expectedLen) {
-			onError(new StreamCorruptedException("No enough data"));
-			return;
-		}
-		
-		if (currentCommandPrefix == null) {
-			currentCommandPrefix = data.clone();
-			expectedLen = chunkSize(data);
-			return;
-		}
-		try {
-			Command cmd = unmarshalCommand(data, currentCommandPrefix);
-			currentCommandPrefix = null;
-			expectedLen = 2;
-			this.processCommand(cmd);
-			return;
-		} catch (Exception e) {
-			if (this.handler != null) {
-				this.handler.onError(e);
-			}
-			expectedLen = 0;
-		}
-		return;
+	public void onData(byte[] data, ArrayList<byte[]> reply) {
+		this.currentState = this.currentState.transit(data, reply);
 	}
 	
 	public void handshake(InputStream istream,
@@ -298,8 +258,6 @@ class ConnectionHandler {
 			if (cmd.getType() != Command.CMD_AUTHOK) {
 				throw new LoginException("bad server reply");
 			}
-			
-			expectedLen = 2;
 		} catch (NoSuchAlgorithmException e) {
 			throw new LoginException("cannot find the algorithm: " + e.getMessage());
 		} catch (NoSuchProviderException e) {
@@ -323,5 +281,6 @@ class ConnectionHandler {
 		} catch (InvalidAlgorithmParameterException e) {
 			throw new LoginException("encryption error: " + e.getMessage());
 		}
+		this.currentState = new ReadingChunkSizeState(this.handler, this.keySet, service, service);
 	}
 }

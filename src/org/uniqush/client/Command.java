@@ -25,7 +25,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 class Command {
-	
+
+	public final static int CMDFLAG_COMPRESS = 1;
 	
 	// Params:
 	// 0. [optional] The Id of the message

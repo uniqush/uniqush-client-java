@@ -30,6 +30,8 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.RSAPublicKeySpec;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.concurrent.Semaphore;
 
 import javax.security.auth.login.LoginException;
@@ -81,6 +83,8 @@ public class MessageCenter implements Runnable {
 			this.handler.onError(e);
 			return;
 		}
+		
+loop:
 		do {
 			int len = this.handler.nextChunkSize();
 			if (len <= 0) {
@@ -91,17 +95,22 @@ public class MessageCenter implements Runnable {
 			if (n != len) {
 				break;
 			}
-			this.handler.onData(data);
-			byte[] reply = this.handler.reply();
-			if (reply != null && reply.length > 0) {
-				try {
-					this.writeLock.acquire();
-					ostream.write(reply);
-					this.writeLock.release();
-				} catch (Exception e) {
-					this.writeLock.release();
-					this.handler.onError(e);
-					break;
+			
+			ArrayList<byte[]> reply = new ArrayList<byte[]>();
+			this.handler.onData(data, reply);
+			if (reply != null && reply.size() > 0) {
+				Iterator<byte[]> iter = reply.iterator();
+				while (iter.hasNext()) {
+					byte[] r = iter.next();
+					try {
+						this.writeLock.acquire();
+						ostream.write(r);
+						this.writeLock.release();
+					} catch (Exception e) {
+						this.writeLock.release();
+						this.handler.onError(e);
+						break loop;
+					}
 				}
 			}
 		} while (true);
