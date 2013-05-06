@@ -193,33 +193,38 @@ class ConnectionHandler {
 		return null;
 	}
 	
-	public int nextChunkLength() {
+	public int nextChunkSize() {
 		return expectedLen;
 	}
 	
-	public byte[] onData(byte[] data) {
+	public byte[] reply() {
+		return null;
+	}
+	
+	public void onData(byte[] data) {
 		if (null == data || data.length != expectedLen) {
 			onError(new StreamCorruptedException("No enough data"));
-			return null;
+			return;
 		}
 		
 		if (currentCommandPrefix == null) {
 			currentCommandPrefix = data.clone();
 			expectedLen = chunkSize(data);
-			return null;
+			return;
 		}
 		try {
 			Command cmd = unmarshalCommand(data, currentCommandPrefix);
 			currentCommandPrefix = null;
 			expectedLen = 2;
-			return this.processCommand(cmd);
+			this.processCommand(cmd);
+			return;
 		} catch (Exception e) {
 			if (this.handler != null) {
 				this.handler.onError(e);
 			}
 			expectedLen = 0;
 		}
-		return null;
+		return;
 	}
 	
 	public void handshake(InputStream istream,

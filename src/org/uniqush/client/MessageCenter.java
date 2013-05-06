@@ -82,7 +82,7 @@ public class MessageCenter implements Runnable {
 			return;
 		}
 		do {
-			int len = this.handler.nextChunkLength();
+			int len = this.handler.nextChunkSize();
 			if (len <= 0) {
 				break;
 			}
@@ -91,7 +91,8 @@ public class MessageCenter implements Runnable {
 			if (n != len) {
 				break;
 			}
-			byte[] reply = this.handler.onData(data);
+			this.handler.onData(data);
+			byte[] reply = this.handler.reply();
 			if (reply != null && reply.length > 0) {
 				try {
 					this.writeLock.acquire();
