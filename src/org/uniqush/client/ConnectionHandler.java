@@ -30,6 +30,7 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.xerial.snappy.Snappy;
 
@@ -183,7 +184,7 @@ class ConnectionHandler {
 		return this.currentState.chunkSize();
 	}
 	
-	public void onData(byte[] data, ArrayList<byte[]> reply) {
+	public void onData(byte[] data, List<byte[]> reply) {
 		this.currentState = this.currentState.transit(data, reply);
 	}
 	

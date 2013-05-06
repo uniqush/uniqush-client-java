@@ -1,7 +1,7 @@
 package org.uniqush.client;
 
 import java.io.StreamCorruptedException;
-import java.util.ArrayList;
+import java.util.List;
 
 class ReadingChunkSizeState extends State {
 	private KeySet keySet;
@@ -28,7 +28,7 @@ class ReadingChunkSizeState extends State {
 	}
 
 	@Override
-	public State transit(byte[] data, ArrayList<byte[]> reply) {
+	public State transit(byte[] data, List<byte[]> reply) {
 		reply.clear();
 		if (data == null || data.length != 2) {
 			this.onError(new StreamCorruptedException("No enough data"));

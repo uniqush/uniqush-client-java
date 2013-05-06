@@ -2,7 +2,7 @@ package org.uniqush.client;
 
 import java.io.IOException;
 import java.io.StreamCorruptedException;
-import java.util.ArrayList;
+import java.util.List;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -41,18 +41,32 @@ public class ReadingChunkState extends State {
 		return cmd;
 	}
 	
-	protected void processCommand(Command cmd, ArrayList<byte[]> reply) {
+	protected State processCommand(Command cmd, List<byte[]> reply) {
 		switch (cmd.getType()) {
 		case Command.CMD_DATA:
 			if (handler != null) {
 				handler.onMessageFromServer(cmd.getParameter(0), cmd.getMessage());
 			}
+		case Command.CMD_FWD:
+			String sender = cmd.getParameter(0);
+			if (sender == null) {
+				this.onError(new StreamCorruptedException("no sender in forward message"));
+				return new ErrorState(this.handler, service, username);
+			}
+			String service = cmd.getParameter(1);
+			if (service == null) {
+				service = this.service;
+			}
+			String id = cmd.getParameter(2);
+			if (this.handler != null) {
+				this.handler.onMessageFromUser(service, service, id, cmd.getMessage());
+			}
 		}
-		return;
+		return new ReadingChunkSizeState(this.handler, this.keySet, service, service);
 	}
 	
 	@Override
-	public State transit(byte[] data, ArrayList<byte[]> reply) {
+	public State transit(byte[] data, List<byte[]> reply) {
 		reply.clear();
 		if (data == null || data.length != this.size) {
 			this.onError(new StreamCorruptedException("No enough data"));
@@ -60,12 +74,10 @@ public class ReadingChunkState extends State {
 		}
 		try {
 			Command cmd = unmarshalCommand(data);
-			processCommand(cmd, reply);
+			return processCommand(cmd, reply);
 		} catch (Exception e) {
 			this.onError(e);
 			return new ErrorState(this.handler, service, username);
 		}
-		
-		return new ReadingChunkSizeState(this.handler, this.keySet, service, service);
 	}
 }

@@ -47,7 +47,7 @@ class Command {
 	public final static int CMD_BYE = 4;
 
 	// Sent from client.
-	// Telling the server about its perference.
+	// Telling the server about its preference.
 	//
 	// Params:
 	// 0. Digest threshold: -1 always send message directly; Empty: not change
@@ -69,7 +69,7 @@ class Command {
 
 	// Sent from client.
 	// Telling the server which cached
-	// message it wants to retrive.
+	// message it wants to retrieve.
 	//
 	// Params:
 	// 0. The message id
@@ -87,7 +87,7 @@ class Command {
 	public final static int CMD_FWD_REQ = 8;
 
 	// Sent from server.
-	// Telling the client the mssage
+	// Telling the client the massage
 	// is originally from another user.
 	//
 	// Params:
@@ -126,7 +126,8 @@ class Command {
 	// Sent from client
 	//
 	// Params:
-	//   0. "1" (as ASCII character, not integer) means subscribe; "0" means unsubscribe. No change on others.
+	//   0. "1" (as ASCII character, not integer) means subscribe;
+	//      "0" means unsubscribe. No change on others.
 	// Message:
 	//   Header: parameters
 	public final static int CMD_SUBSCRIPTION = 11;

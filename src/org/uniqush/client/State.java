@@ -18,6 +18,7 @@
 package org.uniqush.client;
 
 import java.util.ArrayList;
+import java.util.List;
 
 abstract class State {
 	protected MessageHandler handler;
@@ -31,7 +32,7 @@ abstract class State {
 	}
 	
 	abstract public int chunkSize();
-	abstract public State transit(byte[] data, ArrayList<byte[]> reply);
+	abstract public State transit(byte[] data, List<byte[]> reply);
 
 	public void onError(Exception e) {
 		if (this.handler != null) {

@@ -1,6 +1,6 @@
 package org.uniqush.client;
 
-import java.util.ArrayList;
+import java.util.List;
 
 class ErrorState extends State {
 
@@ -14,7 +14,7 @@ class ErrorState extends State {
 	}
 
 	@Override
-	public State transit(byte[] data, ArrayList<byte[]> reply) {
+	public State transit(byte[] data, List<byte[]> reply) {
 		return this;
 	}
 
