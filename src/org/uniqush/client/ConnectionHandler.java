@@ -94,7 +94,7 @@ class ConnectionHandler {
 		System.out.println();
 	}
 	
-	protected Command unmarshalCommand(byte[] encrypted, byte[] prefix) throws ShortBufferException, IllegalBlockSizeException, BadPaddingException, IOException {
+	protected Command unmarshalCommand(byte[] encrypted) throws ShortBufferException, IllegalBlockSizeException, BadPaddingException, IOException {
 		int hmaclen = keySet.getDecryptHmacSize();
 		int len = keySet.getDecryptedSize(encrypted.length - hmaclen);
 		byte[] encoded = new byte[len];
@@ -254,7 +254,7 @@ class ConnectionHandler {
 			if (len != n) {
 				throw new LoginException("no enough data");
 			}
-			Command cmd = unmarshalCommand(chunk, authData);
+			Command cmd = unmarshalCommand(chunk);
 			if (cmd.getType() != Command.CMD_AUTHOK) {
 				throw new LoginException("bad server reply");
 			}
