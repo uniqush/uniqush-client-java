@@ -29,7 +29,6 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.xerial.snappy.Snappy;
@@ -47,7 +46,6 @@ import org.uniqush.diffiehellman.DHPublicKey;
 class ConnectionHandler {
 	final static int ENCR_KEY_LENGTH = 32;
 	final static int AUTH_KEY_LENGTH = 32;
-	final static int IV_LENGTH = 32;
 	final static int HMAC_LENGTH = 32;
 	final static int PSS_SALT_LENGTH = 32;
 	final static int DH_GROUP_ID = 14;
@@ -60,32 +58,12 @@ class ConnectionHandler {
 	private String username;
 	private String token;
 	private RSAPublicKey rsaPub;
-	private KeySet keySet;
+	
+	private CommandMarshaler marshaler;
 	
 	private State currentState;
 	
 	private int compressThreshold;
-	
-	
-	protected void setPrefix(byte[] prefix, int length) {
-		if (prefix.length < 2) {
-			return;
-		}
-		
-		// Command Length: little endian
-		prefix[0] = (byte)(length & 0xFF);
-		prefix[1] = (byte)(length & 0xFF00);
-	}
-	
-	protected int chunkSize(byte[] prefix) {
-		int length = 0;
-		length = prefix[1];
-		length = length << 8;
-		length |= prefix[0];
-		
-		length += keySet.getDecryptHmacSize();
-		return length;
-	}
 	
 	private void printBytes(String name, byte[] buf, int offset, int length) {
 		System.out.print(name + " ");
@@ -94,49 +72,7 @@ class ConnectionHandler {
 		}
 		System.out.println();
 	}
-	
-	protected Command unmarshalCommand(byte[] encrypted) throws ShortBufferException, IllegalBlockSizeException, BadPaddingException, IOException {
-		int hmaclen = keySet.getDecryptHmacSize();
-		int len = keySet.getDecryptedSize(encrypted.length - hmaclen);
-		byte[] encoded = new byte[len];
-		keySet.decrypt(encrypted, 0, encoded, 0);
-		
-		byte[] data = new byte[encoded.length - 1];
-		System.arraycopy(encoded, 1, data, 0, encoded.length - 1);
-		if ((encoded[0] & Command.CMDFLAG_COMPRESS) != (byte) 0) {
-			data = Snappy.uncompress(data);
-		}
-		Command cmd = new Command(data);
-		return cmd;
-	}
-	
-	protected byte[] marshalCommand(Command cmd, boolean compress) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
-		byte[] data = cmd.marshal();
-		byte[] compressed = data;
 
-		if (compress) {
-			compressed = Snappy.compress(data);
-		}
-		
-		byte[] encoded = new byte[compressed.length + 1];
-		// clear the flag field.
-		encoded[0] = 0;
-		if (compress) {
-			encoded[0] |= Command.CMDFLAG_COMPRESS;
-		}
-		System.arraycopy(compressed, 0, encoded, 1, compressed.length);
-		int n = encoded.length;
-		int prefixSz = 2;
-		
-		n = keySet.getEncryptedSize(n);
-		int hmacSz = keySet.getEncryptHmacSize();
-		byte[] encrypted = new byte[n + hmacSz + prefixSz];
-		
-		keySet.encrypt(encoded, 0, encrypted, prefixSz);
-		setPrefix(encrypted, n);
-		return encrypted;
-	}
-	
 	public ConnectionHandler(MessageHandler handler,
 			String service,
 			String username,
@@ -230,32 +166,35 @@ class ConnectionHandler {
 			System.arraycopy(mydhpubBytes, 0, keyExReply, 1, DH_PUBLIC_KEY_LENGTH);
 			
 			// Calculate keys and send the message back;
-			keySet = new KeySet(masterKey, nonce);
+			KeySet keySet = new KeySet(masterKey, nonce);
 			byte[] clienthmac = keySet.clientHmac(keyExReply, 0, DH_PUBLIC_KEY_LENGTH + 1);		
 			System.arraycopy(clienthmac, 0, keyExReply, DH_PUBLIC_KEY_LENGTH + 1, AUTH_KEY_LENGTH);
 			ostream.write(keyExReply);
+			
+			this.marshaler = new CommandMarshaler(keySet);
 			
 			Command authCmd = new Command(Command.CMD_AUTH, null);
 			authCmd.AppendParameter(service);
 			authCmd.AppendParameter(username);
 			authCmd.AppendParameter(token);
 			
-			byte[] authData = marshalCommand(authCmd, false);
+			byte[] authData = marshaler.marshalCommand(authCmd, false);
 			ostream.write(authData);
 			
 			// reuse the authData as prefix
-			n = readFull(istream, authData, 2);
-			if (n != 2) {
+			int prefixLen = marshaler.prefixLength();
+			n = readFull(istream, authData, prefixLen);
+			if (n != prefixLen) {
 				throw new LoginException("no enough data");
 			}
 			
-			n = chunkSize(authData);
+			n = marshaler.chunkSize(authData);
 			byte[] chunk = new byte[n];
 			int len = readFull(istream, chunk, n);
 			if (len != n) {
 				throw new LoginException("no enough data");
 			}
-			Command cmd = unmarshalCommand(chunk);
+			Command cmd = marshaler.unmarshalCommand(chunk);
 			if (cmd.getType() != Command.CMD_AUTHOK) {
 				throw new LoginException("bad server reply");
 			}
@@ -282,6 +221,6 @@ class ConnectionHandler {
 		} catch (InvalidAlgorithmParameterException e) {
 			throw new LoginException("encryption error: " + e.getMessage());
 		}
-		this.currentState = new ReadingChunkSizeState(this.handler, this.keySet, service, service);
+		this.currentState = new ReadingChunkSizeState(this.handler, this.marshaler, service, service);
 	}
 }

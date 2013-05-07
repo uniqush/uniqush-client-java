@@ -1,3 +1,20 @@
+/*
+ * Copyright 2013 Nan Deng
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package org.uniqush.client;
 
 import java.io.IOException;
@@ -13,32 +30,17 @@ import org.xerial.snappy.Snappy;
 public class ReadingChunkState extends State {
 	
 	private int size;
-	private KeySet keySet;
+	private CommandMarshaler marshaler;
 	
-	public ReadingChunkState(MessageHandler handler, KeySet keySet, String service, String username, int size) {
+	public ReadingChunkState(MessageHandler handler, CommandMarshaler marshaler, String service, String username, int size) {
 		super(handler, service, username);
 		this.size = size;
-		this.keySet = keySet;
+		this.marshaler = marshaler;
 	}
 
 	@Override
 	public int chunkSize() {
 		return this.size;
-	}
-
-	protected Command unmarshalCommand(byte[] encrypted) throws ShortBufferException, IllegalBlockSizeException, BadPaddingException, IOException {
-		int hmaclen = keySet.getDecryptHmacSize();
-		int len = keySet.getDecryptedSize(encrypted.length - hmaclen);
-		byte[] encoded = new byte[len];
-		keySet.decrypt(encrypted, 0, encoded, 0);
-		
-		byte[] data = new byte[encoded.length - 1];
-		System.arraycopy(encoded, 1, data, 0, encoded.length - 1);
-		if ((encoded[0] & Command.CMDFLAG_COMPRESS) != (byte) 0) {
-			data = Snappy.uncompress(data);
-		}
-		Command cmd = new Command(data);
-		return cmd;
 	}
 	
 	protected State processCommand(Command cmd, List<byte[]> reply) {
@@ -47,6 +49,7 @@ public class ReadingChunkState extends State {
 			if (handler != null) {
 				handler.onMessageFromServer(cmd.getParameter(0), cmd.getMessage());
 			}
+			break;
 		case Command.CMD_FWD:
 			String sender = cmd.getParameter(0);
 			if (sender == null) {
@@ -61,8 +64,9 @@ public class ReadingChunkState extends State {
 			if (this.handler != null) {
 				this.handler.onMessageFromUser(service, service, id, cmd.getMessage());
 			}
+			break;
 		}
-		return new ReadingChunkSizeState(this.handler, this.keySet, service, service);
+		return new ReadingChunkSizeState(this.handler, this.marshaler, service, service);
 	}
 	
 	@Override
@@ -73,7 +77,7 @@ public class ReadingChunkState extends State {
 			return new ErrorState(this.handler, service, username);
 		}
 		try {
-			Command cmd = unmarshalCommand(data);
+			Command cmd = marshaler.unmarshalCommand(data);
 			return processCommand(cmd, reply);
 		} catch (Exception e) {
 			this.onError(e);

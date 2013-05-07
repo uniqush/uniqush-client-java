@@ -35,6 +35,7 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 class KeySet {
+	private final int IV_LENGTH = 16;
 	private final Charset UTF_8 = Charset.forName("UTF-8");
 	public byte[] serverEncrKey;
 	public byte[] serverAuthKey;
@@ -140,7 +141,7 @@ class KeySet {
 		this.encryptCipher = Cipher.getInstance("AES/CTR/NoPadding");
 		this.decryptCipher = Cipher.getInstance("AES/CTR/NoPadding");
 		
-		byte[] iv = new byte[16];
+		byte[] iv = new byte[IV_LENGTH];
 		for (int i = 0; i < iv.length; i++) {
 			iv[i] = 0;
 		}
