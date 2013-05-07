@@ -17,15 +17,9 @@
 
 package org.uniqush.client;
 
-import java.io.IOException;
 import java.io.StreamCorruptedException;
 import java.util.List;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.ShortBufferException;
-
-import org.xerial.snappy.Snappy;
+import java.util.Map;
 
 public class ReadingChunkState extends State {
 	
@@ -43,7 +37,7 @@ public class ReadingChunkState extends State {
 		return this.size;
 	}
 	
-	protected State processCommand(Command cmd, List<byte[]> reply) {
+	protected State processCommand(Command cmd, List<byte[]> reply) throws StreamCorruptedException {
 		switch (cmd.getType()) {
 		case Command.CMD_DATA:
 			if (handler != null) {
@@ -63,6 +57,32 @@ public class ReadingChunkState extends State {
 			String id = cmd.getParameter(2);
 			if (this.handler != null) {
 				this.handler.onMessageFromUser(service, service, id, cmd.getMessage());
+			}
+			break;
+		case Command.CMD_DIGEST:
+			if (cmd.nrParameters() < 2) {
+				throw new StreamCorruptedException("bad server implementation: too little parameters for digest");
+			}
+			String szStr = cmd.getParameter(0);
+			int size = Integer.parseInt(szStr);
+			String msgId = cmd.getParameter(1);
+			if (msgId == null || msgId.length() <= 0) {
+				throw new StreamCorruptedException("bad server implementation: invalid msgId");
+			}
+			Message msg = cmd.getMessage();
+			Map<String, String> info = null;
+			if (msg != null) {
+				info = msg.getHeader();
+			}
+			sender = cmd.getParameter(2);
+			if (sender == null) {
+				this.handler.onMessageDigestFromServer(size, msgId, info);
+			} else {
+				service = cmd.getParameter(3);
+				if (service == null) {
+					service = this.service;
+				}
+				this.handler.onMessageDigestFromUser(service, sender, size, msgId, info);
 			}
 			break;
 		}
