@@ -138,8 +138,8 @@ class KeySet {
 		h.reset();
 		
 
-		this.encryptCipher = Cipher.getInstance("AES/CTR/NoPadding");
-		this.decryptCipher = Cipher.getInstance("AES/CTR/NoPadding");
+		this.encryptCipher = Cipher.getInstance("AES/CTR/NoPadding", "BC");
+		this.decryptCipher = Cipher.getInstance("AES/CTR/NoPadding", "BC");
 		
 		byte[] iv = new byte[IV_LENGTH];
 		for (int i = 0; i < iv.length; i++) {
