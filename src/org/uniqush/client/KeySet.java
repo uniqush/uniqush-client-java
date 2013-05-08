@@ -96,8 +96,7 @@ class KeySet {
 		// encrypt-then-hmac
 		int inputLen = input.length - inputOffset;
 		int len = encryptCipher.update(input, inputOffset, inputLen, output, outputOffset);
-		System.out.printf("encrypted len=%d; input length=%d\n", len, inputLen);
-
+		
 		byte[] prefix = new byte[2];
 		prefix[0] = (byte)(inputLen & 0xFF);
 		prefix[1] = (byte)((inputLen >> 8) & 0xFF);
