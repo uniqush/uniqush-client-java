@@ -66,6 +66,14 @@ public class MessageCenter implements Runnable {
 		this.writeLock = new Semaphore(1);
 	}
 	
+	public void sendMessageToUser(String service, String username, Message msg, int ttl) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException, InterruptedException {
+		byte [] data = this.handler.marshalMessageToUser(service, username, msg, ttl);
+
+		this.writeLock.acquire();
+		this.serverSocket.getOutputStream().write(data);
+		this.writeLock.release();
+	}
+	
 	public void sendMessageToServer(Message msg) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException, InterruptedException {
 		byte[] data = this.handler.marshalMessageToServer(msg);
 

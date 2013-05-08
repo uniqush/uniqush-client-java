@@ -70,9 +70,28 @@ class MessageEcho implements MessageHandler {
 	@Override
 	public void onMessageFromUser(String service, String username, String id,
 			Message msg) {
-		System.out.printf("Message Received from %s:%s with id %s:", service, username, id);
+		System.out.printf("Message Received from [service=%s] %s with id %s:", service, username, id);
 		printMessage(msg);
 		System.out.println();
+		
+		try {
+			this.center.sendMessageToUser(service, username, msg, 3600);
+		} catch (IllegalBlockSizeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ShortBufferException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (BadPaddingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	@Override

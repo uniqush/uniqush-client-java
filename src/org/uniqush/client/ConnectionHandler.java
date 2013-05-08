@@ -124,6 +124,24 @@ class ConnectionHandler {
 		this.currentState = this.currentState.transit(data, reply);
 	}
 	
+	public byte[] marshalMessageToUser(String service, String username, Message msg, int ttl) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
+		Command cmd = null;
+		cmd = new Command(Command.CMD_FWD_REQ, msg);
+		
+		// TTL (in second)
+		cmd.AppendParameter((new Integer(ttl)).toString() + "s");
+		cmd.AppendParameter(username);
+		if (service != this.service) {
+			cmd.AppendParameter(service);
+		}
+		int size = cmd.marshal().length;
+		boolean compress = false;
+		if (size > this.compressThreshold) {
+			compress = true;
+		}
+		return this.marshaler.marshalCommand(cmd, compress);
+	}
+	
 	public byte[] marshalMessageToServer(Message msg) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
 		Command cmd = null;
 		if (msg == null) {

@@ -56,7 +56,7 @@ public class ReadingChunkState extends State {
 			}
 			String id = cmd.getParameter(2);
 			if (this.handler != null) {
-				this.handler.onMessageFromUser(service, service, id, cmd.getMessage());
+				this.handler.onMessageFromUser(service, sender, id, cmd.getMessage());
 			}
 			break;
 		case Command.CMD_DIGEST:
