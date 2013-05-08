@@ -34,6 +34,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.Semaphore;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.ShortBufferException;
 import javax.security.auth.login.LoginException;
 
 public class MessageCenter implements Runnable {
@@ -41,18 +44,34 @@ public class MessageCenter implements Runnable {
 	private ConnectionHandler handler;
 	private Semaphore writeLock;
 	
-	public MessageCenter(String address,
+	public MessageCenter() {
+		this.serverSocket = null;
+	}
+	
+	public void connect(
+			String address,
 			int port,
 			String service,
 			String username,
 			String token,
 			RSAPublicKey pub,
 			MessageHandler msgHandler) throws UnknownHostException, IOException, LoginException {
+		if (this.serverSocket != null) {
+			this.serverSocket.close();
+		}
 		this.serverSocket = new Socket(address, port);
 		ConnectionHandler handler = new ConnectionHandler(msgHandler, service, username, token, pub);
 		handler.handshake(this.serverSocket.getInputStream(), this.serverSocket.getOutputStream());
 		this.handler = handler;
 		this.writeLock = new Semaphore(1);
+	}
+	
+	public void sendMessageToServer(Message msg) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException, InterruptedException {
+		byte[] data = this.handler.marshalMessageToServer(msg);
+
+		this.writeLock.acquire();
+		this.serverSocket.getOutputStream().write(data);
+		this.writeLock.release();
 	}
 
 	private int readFull(InputStream istream, byte[] buf, int length) {
@@ -142,8 +161,9 @@ loop:
 			e.printStackTrace();
 		}
 		try {
-			MessageHandler msgHandler = new MessagePrinter();
-			MessageCenter center = new MessageCenter("127.0.0.1", 8964, "service", "monnand", "token", (RSAPublicKey)pub, msgHandler);
+			MessageCenter center = new MessageCenter();
+			MessageEcho msgHandler = new MessageEcho(center);
+			center.connect("127.0.0.1", 8964, "service", "monnand", "token", (RSAPublicKey)pub, msgHandler);
 			Thread th = new Thread(center);
 			th.start();
 			th.join();

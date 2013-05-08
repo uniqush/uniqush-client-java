@@ -124,6 +124,20 @@ class ConnectionHandler {
 		this.currentState = this.currentState.transit(data, reply);
 	}
 	
+	public byte[] marshalMessageToServer(Message msg) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
+		Command cmd = null;
+		if (msg == null) {
+			cmd = new Command(Command.CMD_EMPTY, null);
+		}
+		cmd = new Command(Command.CMD_DATA, msg);
+		int size = cmd.marshal().length;
+		boolean compress = false;
+		if (size > this.compressThreshold) {
+			compress = true;
+		}
+		return this.marshaler.marshalCommand(cmd, compress);
+	}
+	
 	public void handshake(InputStream istream,
 			OutputStream ostream) throws LoginException {
 		int siglen = (rsaPub.getModulus().bitLength() + 7)/8;
