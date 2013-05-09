@@ -32,8 +32,6 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.Iterator;
 import java.util.List;
 
-import org.xerial.snappy.Snappy;
-
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
@@ -66,6 +64,7 @@ class ConnectionHandler {
 	
 	private int compressThreshold;
 	
+	/*
 	private void printBytes(String name, byte[] buf, int offset, int length) {
 		System.out.print(name + " ");
 		for (int i = offset; i < offset + length; i++) {
@@ -73,6 +72,7 @@ class ConnectionHandler {
 		}
 		System.out.println();
 	}
+	*/
 
 	public ConnectionHandler(MessageHandler handler,
 			String service,

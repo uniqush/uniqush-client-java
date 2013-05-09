@@ -17,7 +17,6 @@
 
 package org.uniqush.client;
 
-import java.util.ArrayList;
 import java.util.List;
 
 abstract class State {
