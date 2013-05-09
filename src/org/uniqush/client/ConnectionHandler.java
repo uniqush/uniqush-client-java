@@ -29,6 +29,7 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Iterator;
 import java.util.List;
 
 import org.xerial.snappy.Snappy;
@@ -124,6 +125,47 @@ class ConnectionHandler {
 		this.currentState = this.currentState.transit(data, reply);
 	}
 	
+	protected byte[] marshalCommand(Command cmd) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
+		int size = cmd.marshal().length;
+		boolean compress = false;
+		if (size > this.compressThreshold) {
+			compress = true;
+		}
+		return this.marshaler.marshalCommand(cmd, compress);
+	}
+	
+	/**
+	 * Set the parameters and tell the server to set to the same value
+	 * @param digestThreshold When a message is larger than the threshold,
+	 * 	then server should send the digest instead of the message it self.
+	 *  <=0 means always receive the digest first.
+	 * @param compressThreshold When a message is larger than the threshold,
+	 * 	the peer (both server and client) should compress the message before
+	 * 	encrypting it. <= 0 means always compress.
+	 * @param digestFields When server sends a digest of a message, it should
+	 * 	examine the header of the message and put the specified fields in
+	 * 	the digest.
+	 * @return
+	 * @throws IOException 
+	 * @throws BadPaddingException 
+	 * @throws ShortBufferException 
+	 * @throws IllegalBlockSizeException 
+	 */
+	public byte[] marshalConfigCommand(int digestThreshold, int compressThreshold, List<String> digestFields) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
+		this.compressThreshold = compressThreshold;
+		Command cmd = new Command(Command.CMD_SETTING, null);
+		
+		cmd.AppendParameter((new Integer(digestThreshold)).toString());
+		cmd.AppendParameter((new Integer(compressThreshold)).toString());
+		if (digestFields != null) {
+			Iterator<String> iter = digestFields.iterator();
+			while (iter.hasNext()) {
+				cmd.AppendParameter(iter.next());
+			}
+		}
+		return marshalCommand(cmd);
+	}
+	
 	public byte[] marshalMessageToUser(String service, String username, Message msg, int ttl) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
 		Command cmd = null;
 		cmd = new Command(Command.CMD_FWD_REQ, msg);
@@ -134,12 +176,7 @@ class ConnectionHandler {
 		if (service != this.service) {
 			cmd.AppendParameter(service);
 		}
-		int size = cmd.marshal().length;
-		boolean compress = false;
-		if (size > this.compressThreshold) {
-			compress = true;
-		}
-		return this.marshaler.marshalCommand(cmd, compress);
+		return marshalCommand(cmd);
 	}
 	
 	public byte[] marshalMessageToServer(Message msg) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
@@ -148,12 +185,7 @@ class ConnectionHandler {
 			cmd = new Command(Command.CMD_EMPTY, null);
 		}
 		cmd = new Command(Command.CMD_DATA, msg);
-		int size = cmd.marshal().length;
-		boolean compress = false;
-		if (size > this.compressThreshold) {
-			compress = true;
-		}
-		return this.marshaler.marshalCommand(cmd, compress);
+		return marshalCommand(cmd);
 	}
 	
 	public void handshake(InputStream istream,
