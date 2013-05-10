@@ -15,12 +15,16 @@
  *
  */
 
-package org.uniqush.client;
+package org.uniqush.java.example;
 
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import org.uniqush.client.Message;
+import org.uniqush.client.MessageCenter;
+import org.uniqush.client.MessageHandler;
 
 class MessageEcho implements MessageHandler {
 	private MessageCenter center;
