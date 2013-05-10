@@ -15,7 +15,7 @@
  *
  */
 
-package org.uniqush.java.example;
+package org.uniqush.examples.java;
 
 import java.io.IOException;
 import java.util.Iterator;
