@@ -32,6 +32,7 @@ import java.security.spec.KeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.Semaphore;
 
 import javax.crypto.BadPaddingException;
@@ -77,6 +78,13 @@ public class MessageCenter implements Runnable {
 	public void sendMessageToServer(Message msg) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException, InterruptedException {
 		byte[] data = this.handler.marshalMessageToServer(msg);
 
+		this.writeLock.acquire();
+		this.serverSocket.getOutputStream().write(data);
+		this.writeLock.release();
+	}
+	
+	public void config(int digestThreshold, int compressThreshold, List<String> digestFields) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException, InterruptedException {
+		byte[] data = this.handler.marshalConfigCommand(digestThreshold, compressThreshold, digestFields);
 		this.writeLock.acquire();
 		this.serverSocket.getOutputStream().write(data);
 		this.writeLock.release();
@@ -172,6 +180,7 @@ loop:
 			MessageCenter center = new MessageCenter();
 			MessageEcho msgHandler = new MessageEcho(center);
 			center.connect("127.0.0.1", 8964, "service", "monnand", "token", (RSAPublicKey)pub, msgHandler);
+			center.config(0, 512, null);
 			Thread th = new Thread(center);
 			th.start();
 			th.join();
@@ -185,6 +194,15 @@ loop:
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalBlockSizeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ShortBufferException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (BadPaddingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

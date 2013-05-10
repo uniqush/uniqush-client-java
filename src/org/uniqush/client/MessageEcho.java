@@ -32,14 +32,18 @@ class MessageEcho implements MessageHandler {
 	public MessageEcho(MessageCenter center) {
 		this.center = center;
 	}
-
-	private void printMessage(Message msg) {
-		Map<String, String> header = msg.getHeader();
+	
+	private void printMap(Map<String, String> header) {
 		Iterator<Entry<String,String>> iter = header.entrySet().iterator();
 		while (iter.hasNext()) {
 			Entry<String, String> entry = iter.next();
 			System.out.printf("[%s=%s]", entry.getKey(), entry.getValue());
 		}
+	}
+
+	private void printMessage(Message msg) {
+		Map<String, String> header = msg.getHeader();
+		printMap(header);
 	}
 
 	@Override
@@ -97,15 +101,13 @@ class MessageEcho implements MessageHandler {
 	@Override
 	public void onMessageDigestFromServer(int size, String id,
 			Map<String, String> parameters) {
-		// TODO Auto-generated method stub
-
+		System.out.printf("received message digest from server: size=%d, id=%s\n", size, id);
 	}
 
 	@Override
 	public void onMessageDigestFromUser(String service, String username,
 			int size, String id, Map<String, String> parameters) {
-		// TODO Auto-generated method stub
-
+		System.out.printf("received message digest from %s:%s: size=%d, id=%s\n", service, username, size, id);
 	}
 
 	@Override
