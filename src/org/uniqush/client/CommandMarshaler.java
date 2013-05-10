@@ -18,6 +18,7 @@
 package org.uniqush.client;
 
 import java.io.IOException;
+import java.net.ProtocolException;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -73,12 +74,16 @@ class CommandMarshaler {
 		prefix[1] = (byte)(length & 0xFF00);
 	}
 	
-	public byte[] marshalCommand(Command cmd, boolean compress) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
+	public byte[] marshalCommand(Command cmd, boolean compress) throws ProtocolException {
 		byte[] data = cmd.marshal();
 		byte[] compressed = data;
 
 		if (compress) {
-			compressed = Snappy.compress(data);
+			try {
+				compressed = Snappy.compress(data);
+			} catch (IOException e) {
+				throw new ProtocolException(e.getMessage());
+			}
 		}
 		
 		int nrBlk = (compressed.length + 16) / 16;
@@ -99,7 +104,11 @@ class CommandMarshaler {
 		int hmacSz = keySet.getEncryptHmacSize();
 		byte[] encrypted = new byte[n + hmacSz + prefixSz];
 		
-		keySet.encrypt(encoded, 0, encrypted, prefixSz);
+		try {
+			keySet.encrypt(encoded, 0, encrypted, prefixSz);
+		} catch (Exception e) {
+			throw new ProtocolException(e.getMessage());
+		}
 		setPrefix(encrypted, n);
 		return encrypted;
 	}

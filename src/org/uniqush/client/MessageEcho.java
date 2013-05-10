@@ -22,10 +22,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.ShortBufferException;
-
 class MessageEcho implements MessageHandler {
 	private MessageCenter center;
 	
@@ -53,15 +49,6 @@ class MessageEcho implements MessageHandler {
 		System.out.println();
 		try {
 			this.center.sendMessageToServer(msg);
-		} catch (IllegalBlockSizeException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ShortBufferException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (BadPaddingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -80,15 +67,6 @@ class MessageEcho implements MessageHandler {
 		
 		try {
 			this.center.sendMessageToUser(service, username, msg, 3600);
-		} catch (IllegalBlockSizeException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ShortBufferException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (BadPaddingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -102,12 +80,30 @@ class MessageEcho implements MessageHandler {
 	public void onMessageDigestFromServer(int size, String id,
 			Map<String, String> parameters) {
 		System.out.printf("received message digest from server: size=%d, id=%s\n", size, id);
+		try {
+			this.center.requestMessage(id);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	@Override
 	public void onMessageDigestFromUser(String service, String username,
 			int size, String id, Map<String, String> parameters) {
 		System.out.printf("received message digest from %s:%s: size=%d, id=%s\n", service, username, size, id);
+		try {
+			this.center.requestMessage(id);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	@Override

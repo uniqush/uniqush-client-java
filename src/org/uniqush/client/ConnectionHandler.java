@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StreamCorruptedException;
+import java.net.ProtocolException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -125,13 +126,22 @@ class ConnectionHandler {
 		this.currentState = this.currentState.transit(data, reply);
 	}
 	
-	protected byte[] marshalCommand(Command cmd) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
+	protected byte[] marshalCommand(Command cmd) throws ProtocolException {
 		int size = cmd.marshal().length;
 		boolean compress = false;
 		if (size > this.compressThreshold) {
 			compress = true;
 		}
 		return this.marshaler.marshalCommand(cmd, compress);
+	}
+	
+	public byte[] marshalRequestMessageCommand(String id) throws ProtocolException {
+		if (id == null || id.length() <= 0) {
+			throw new IllegalArgumentException("bad message id: " + id);
+		}
+		Command cmd = new Command(Command.CMD_MSG_RETRIEVE, null);
+		cmd.AppendParameter(id);
+		return this.marshalCommand(cmd);
 	}
 	
 	/**
@@ -146,12 +156,9 @@ class ConnectionHandler {
 	 * 	examine the header of the message and put the specified fields in
 	 * 	the digest.
 	 * @return
-	 * @throws IOException 
-	 * @throws BadPaddingException 
-	 * @throws ShortBufferException 
-	 * @throws IllegalBlockSizeException 
+	 * @throws ProtocolException 
 	 */
-	public byte[] marshalConfigCommand(int digestThreshold, int compressThreshold, List<String> digestFields) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
+	public byte[] marshalConfigCommand(int digestThreshold, int compressThreshold, List<String> digestFields) throws ProtocolException {
 		this.compressThreshold = compressThreshold;
 		Command cmd = new Command(Command.CMD_SETTING, null);
 		
@@ -166,7 +173,7 @@ class ConnectionHandler {
 		return marshalCommand(cmd);
 	}
 	
-	public byte[] marshalMessageToUser(String service, String username, Message msg, int ttl) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
+	public byte[] marshalMessageToUser(String service, String username, Message msg, int ttl) throws ProtocolException {
 		Command cmd = null;
 		cmd = new Command(Command.CMD_FWD_REQ, msg);
 		
@@ -179,7 +186,7 @@ class ConnectionHandler {
 		return marshalCommand(cmd);
 	}
 	
-	public byte[] marshalMessageToServer(Message msg) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException {
+	public byte[] marshalMessageToServer(Message msg) throws ProtocolException {
 		Command cmd = null;
 		if (msg == null) {
 			cmd = new Command(Command.CMD_EMPTY, null);

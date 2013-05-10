@@ -34,10 +34,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.ShortBufferException;
 import javax.security.auth.login.LoginException;
 
 public class MessageCenter implements Runnable {
@@ -67,7 +63,7 @@ public class MessageCenter implements Runnable {
 		this.writeLock = new Semaphore(1);
 	}
 	
-	public void sendMessageToUser(String service, String username, Message msg, int ttl) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException, InterruptedException {
+	public void sendMessageToUser(String service, String username, Message msg, int ttl) throws InterruptedException, IOException {
 		byte [] data = this.handler.marshalMessageToUser(service, username, msg, ttl);
 
 		this.writeLock.acquire();
@@ -75,7 +71,7 @@ public class MessageCenter implements Runnable {
 		this.writeLock.release();
 	}
 	
-	public void sendMessageToServer(Message msg) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException, InterruptedException {
+	public void sendMessageToServer(Message msg) throws InterruptedException, IOException {
 		byte[] data = this.handler.marshalMessageToServer(msg);
 
 		this.writeLock.acquire();
@@ -83,8 +79,15 @@ public class MessageCenter implements Runnable {
 		this.writeLock.release();
 	}
 	
-	public void config(int digestThreshold, int compressThreshold, List<String> digestFields) throws IllegalBlockSizeException, ShortBufferException, BadPaddingException, IOException, InterruptedException {
+	public void config(int digestThreshold, int compressThreshold, List<String> digestFields) throws IOException, InterruptedException {
 		byte[] data = this.handler.marshalConfigCommand(digestThreshold, compressThreshold, digestFields);
+		this.writeLock.acquire();
+		this.serverSocket.getOutputStream().write(data);
+		this.writeLock.release();
+	}
+	
+	public void requestMessage(String id) throws InterruptedException, IOException {
+		byte[] data = this.handler.marshalRequestMessageCommand(id);
 		this.writeLock.acquire();
 		this.serverSocket.getOutputStream().write(data);
 		this.writeLock.release();
@@ -194,15 +197,6 @@ loop:
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalBlockSizeException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ShortBufferException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (BadPaddingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
