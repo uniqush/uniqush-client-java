@@ -32,6 +32,7 @@ import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -133,6 +134,20 @@ class ConnectionHandler {
 			compress = true;
 		}
 		return this.marshaler.marshalCommand(cmd, compress);
+	}
+	
+	public byte[] marshalSubscriptionCommand(Map<String, String> params, boolean sub) throws ProtocolException {
+		if (params == null || params.size() <= 0) {
+			throw new IllegalArgumentException("empty parameter");
+		}
+		Message msg = new Message(params, null);
+		Command cmd = new Command(Command.CMD_SUBSCRIPTION, msg);
+		if (sub) {
+			cmd.AppendParameter("1");
+		} else {
+			cmd.AppendParameter("0");
+		}
+		return this.marshalCommand(cmd);
 	}
 	
 	public byte[] marshalRequestMessageCommand(String id) throws ProtocolException {

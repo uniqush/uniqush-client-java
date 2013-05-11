@@ -26,12 +26,13 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Semaphore;
 import javax.security.auth.login.LoginException;
 
 public class MessageCenter implements Runnable {
 	private Socket serverSocket;
-	private ConnectionHandler handler;
+	protected ConnectionHandler handler;
 	private Semaphore writeLock;
 	
 	public MessageCenter() {
@@ -81,6 +82,20 @@ public class MessageCenter implements Runnable {
 	
 	public void requestMessage(String id) throws InterruptedException, IOException {
 		byte[] data = this.handler.marshalRequestMessageCommand(id);
+		this.writeLock.acquire();
+		this.serverSocket.getOutputStream().write(data);
+		this.writeLock.release();
+	}
+	
+	protected void subscribe(Map<String, String> params) throws InterruptedException, IOException {
+		byte[] data = this.handler.marshalSubscriptionCommand(params, true);
+		this.writeLock.acquire();
+		this.serverSocket.getOutputStream().write(data);
+		this.writeLock.release();
+	}
+	
+	protected void unsubscribe(Map<String, String> params) throws InterruptedException, IOException {
+		byte[] data = this.handler.marshalSubscriptionCommand(params, false);
 		this.writeLock.acquire();
 		this.serverSocket.getOutputStream().write(data);
 		this.writeLock.release();
