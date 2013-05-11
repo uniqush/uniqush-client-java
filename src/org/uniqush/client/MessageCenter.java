@@ -87,14 +87,14 @@ public class MessageCenter implements Runnable {
 		this.writeLock.release();
 	}
 	
-	protected void subscribe(Map<String, String> params) throws InterruptedException, IOException {
+	public void subscribe(Map<String, String> params) throws InterruptedException, IOException {
 		byte[] data = this.handler.marshalSubscriptionCommand(params, true);
 		this.writeLock.acquire();
 		this.serverSocket.getOutputStream().write(data);
 		this.writeLock.release();
 	}
 	
-	protected void unsubscribe(Map<String, String> params) throws InterruptedException, IOException {
+	public void unsubscribe(Map<String, String> params) throws InterruptedException, IOException {
 		byte[] data = this.handler.marshalSubscriptionCommand(params, false);
 		this.writeLock.acquire();
 		this.serverSocket.getOutputStream().write(data);
@@ -160,12 +160,16 @@ loop:
 				}
 			}
 		} while (true);
+	}
+	
+	public void stop() {
 		this.handler.onCloseStart();
 		try {
 			this.serverSocket.close();
 		} catch (IOException e) {
 			// WTF. What do you want me to do?
 		}
+		this.serverSocket = null;
 		this.handler.onClosed();
 	}
 
