@@ -93,6 +93,7 @@ class MessageEcho implements MessageHandler {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		System.out.println("done: digest from server");
 	}
 
 	@Override

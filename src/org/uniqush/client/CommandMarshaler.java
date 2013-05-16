@@ -24,10 +24,23 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.ShortBufferException;
 
-import org.xerial.snappy.Snappy;
+
+//import org.xerial.snappy.Snappy;
+
+import org.iq80.snappy.Snappy;
 
 class CommandMarshaler {
 	private KeySet keySet;
+	
+	/*
+	private void printBytes(String name, byte[] buf, int offset, int length) {
+		System.out.print(name + " ");
+		for (int i = offset; i < offset + length; i++) {
+			System.out.printf("%d ", (int)(buf[i] & 0xFF));
+		}
+		System.out.println();
+	}
+	*/
 	
 	public CommandMarshaler(KeySet ks) {
 		this.keySet = ks;
@@ -58,7 +71,9 @@ class CommandMarshaler {
 		byte[] data = new byte[encoded.length - 1 - paddingLen];
 		System.arraycopy(encoded, 1, data, 0, data.length);
 		if ((encoded[0] & Command.CMDFLAG_COMPRESS) != (byte) 0) {
-			data = Snappy.uncompress(data);
+			//data = Snappy.uncompress(data);
+			System.out.println("Need to decompress");
+			data = Snappy.uncompress(data, 0, data.length);
 		}
 		Command cmd = new Command(data);
 		return cmd;
@@ -79,11 +94,7 @@ class CommandMarshaler {
 		byte[] compressed = data;
 
 		if (compress) {
-			try {
-				compressed = Snappy.compress(data);
-			} catch (IOException e) {
-				throw new ProtocolException(e.getMessage());
-			}
+			compressed = Snappy.compress(data);
 		}
 		
 		int nrBlk = (compressed.length + 16) / 16;

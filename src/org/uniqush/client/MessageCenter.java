@@ -85,6 +85,7 @@ public class MessageCenter implements Runnable {
 		this.writeLock.acquire();
 		this.serverSocket.getOutputStream().write(data);
 		this.writeLock.release();
+		System.out.println("done: requestMessage");
 	}
 	
 	public void subscribe(Map<String, String> params) throws InterruptedException, IOException {

@@ -38,7 +38,7 @@ public class Echo {
 			MessageCenter center = new MessageCenter();
 			MessageEcho msgHandler = new MessageEcho(center);
 			center.connect("127.0.0.1", 8964, "service", "monnand", "token", (RSAPublicKey)pub, msgHandler);
-			center.config(0, 512, null);
+			center.config(0, 32, null);
 			Thread th = new Thread(center);
 			th.start();
 			//Thread.sleep(6 * 1000);
