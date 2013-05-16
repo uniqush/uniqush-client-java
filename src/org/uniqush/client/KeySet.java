@@ -34,6 +34,8 @@ import javax.crypto.ShortBufferException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.uniqush.rsa.MaskGenerationFunction;
+
 class KeySet {
 	private final int IV_LENGTH = 16;
 	private final Charset UTF_8 = Charset.forName("UTF-8");

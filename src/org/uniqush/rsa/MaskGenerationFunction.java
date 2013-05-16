@@ -15,11 +15,11 @@
  *
  */
 
-package org.uniqush.client;
+package org.uniqush.rsa;
 
 import java.security.MessageDigest;
 
-class MaskGenerationFunction {
+public class MaskGenerationFunction {
 	private MessageDigest hash;
 	
 	public MaskGenerationFunction(MessageDigest hash) {

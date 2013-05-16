@@ -41,8 +41,8 @@ public class Echo {
 			center.config(0, 512, null);
 			Thread th = new Thread(center);
 			th.start();
-			Thread.sleep(6 * 1000);
-			center.stop();
+			//Thread.sleep(6 * 1000);
+			//center.stop();
 			th.join();
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block

@@ -43,6 +43,7 @@ import javax.security.auth.login.LoginException;
 import org.uniqush.diffiehellman.DHGroup;
 import org.uniqush.diffiehellman.DHPrivateKey;
 import org.uniqush.diffiehellman.DHPublicKey;
+import org.uniqush.rsa.RSASSAPSSVerifier;
 
 class ConnectionHandler {
 	final static int ENCR_KEY_LENGTH = 32;
@@ -230,7 +231,16 @@ class ConnectionHandler {
 		try {
 			
 			// Verify the signature from the server. Make sure there is no MITM attack.
-			Signature sign = Signature.getInstance("SHA256WITHRSA/PSS", "BC");
+			//Signature sign = Signature.getInstance("SHA256withRSA/PSS", "BC");
+			Signature sign = null;
+			try {
+				sign = Signature.getInstance("SHA256withRSA/PSS", "BC");
+			} catch (NoSuchAlgorithmException e) {
+				// If there is no SHA256withRSA/PSS, then we should use
+				// our own home brewed code.
+				// Yes, I'm talking about you, android.
+				sign = new RSASSAPSSVerifier("SHA256");
+			}
 			sign.initVerify(this.rsaPub);
 			sign.update(data, 0, DH_PUBLIC_KEY_LENGTH + 1);
 			boolean goodsign = sign.verify(data, DH_PUBLIC_KEY_LENGTH + 1, siglen);
