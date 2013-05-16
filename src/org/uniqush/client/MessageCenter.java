@@ -37,6 +37,7 @@ public class MessageCenter implements Runnable {
 	
 	public MessageCenter() {
 		this.serverSocket = null;
+		this.writeLock = new Semaphore(1);
 	}
 	
 	public void connect(
@@ -46,7 +47,8 @@ public class MessageCenter implements Runnable {
 			String username,
 			String token,
 			RSAPublicKey pub,
-			MessageHandler msgHandler) throws UnknownHostException, IOException, LoginException {
+			MessageHandler msgHandler) throws UnknownHostException, IOException, LoginException, InterruptedException {
+		this.writeLock.acquire();
 		if (this.serverSocket != null) {
 			this.serverSocket.close();
 		}
@@ -54,52 +56,65 @@ public class MessageCenter implements Runnable {
 		ConnectionHandler handler = new ConnectionHandler(msgHandler, service, username, token, pub);
 		handler.handshake(this.serverSocket.getInputStream(), this.serverSocket.getOutputStream());
 		this.handler = handler;
-		this.writeLock = new Semaphore(1);
+		this.writeLock.release();
+	}
+	
+	protected void sendData(byte[] data) throws IOException, InterruptedException {
+		this.writeLock.acquire();
+		if (this.serverSocket == null) {
+			this.writeLock.release();
+			throw new IOException("Not ready");
+		}
+		this.serverSocket.getOutputStream().write(data);
+		this.writeLock.release();
 	}
 	
 	public void sendMessageToUser(String service, String username, Message msg, int ttl) throws InterruptedException, IOException {
+		if (this.handler == null) {
+			throw new IOException("Not ready");
+		}
 		byte [] data = this.handler.marshalMessageToUser(service, username, msg, ttl);
-
-		this.writeLock.acquire();
-		this.serverSocket.getOutputStream().write(data);
-		this.writeLock.release();
+		sendData(data);
 	}
 	
 	public void sendMessageToServer(Message msg) throws InterruptedException, IOException {
+		if (this.handler == null) {
+			throw new IOException("Not ready");
+		}
 		byte[] data = this.handler.marshalMessageToServer(msg);
-
-		this.writeLock.acquire();
-		this.serverSocket.getOutputStream().write(data);
-		this.writeLock.release();
+		sendData(data);
 	}
 	
 	public void config(int digestThreshold, int compressThreshold, List<String> digestFields) throws IOException, InterruptedException {
+		if (this.handler == null) {
+			throw new IOException("Not ready");
+		}
 		byte[] data = this.handler.marshalConfigCommand(digestThreshold, compressThreshold, digestFields);
-		this.writeLock.acquire();
-		this.serverSocket.getOutputStream().write(data);
-		this.writeLock.release();
+		sendData(data);
 	}
 	
 	public void requestMessage(String id) throws InterruptedException, IOException {
+		if (this.handler == null) {
+			throw new IOException("Not ready");
+		}
 		byte[] data = this.handler.marshalRequestMessageCommand(id);
-		this.writeLock.acquire();
-		this.serverSocket.getOutputStream().write(data);
-		this.writeLock.release();
-		System.out.println("done: requestMessage");
+		sendData(data);
 	}
 	
 	public void subscribe(Map<String, String> params) throws InterruptedException, IOException {
+		if (this.handler == null) {
+			throw new IOException("Not ready");
+		}
 		byte[] data = this.handler.marshalSubscriptionCommand(params, true);
-		this.writeLock.acquire();
-		this.serverSocket.getOutputStream().write(data);
-		this.writeLock.release();
+		sendData(data);
 	}
 	
 	public void unsubscribe(Map<String, String> params) throws InterruptedException, IOException {
+		if (this.handler == null) {
+			throw new IOException("Not ready");
+		}
 		byte[] data = this.handler.marshalSubscriptionCommand(params, false);
-		this.writeLock.acquire();
-		this.serverSocket.getOutputStream().write(data);
-		this.writeLock.release();
+		sendData(data);
 	}
 
 	private int readFull(InputStream istream, byte[] buf, int length) {
