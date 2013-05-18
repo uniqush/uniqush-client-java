@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import javax.security.auth.login.LoginException;
 
@@ -34,10 +35,12 @@ public class MessageCenter implements Runnable {
 	private Socket serverSocket;
 	protected ConnectionHandler handler;
 	private Semaphore writeLock;
+	private CountDownLatch doneSignal;
 	
 	public MessageCenter() {
 		this.serverSocket = null;
 		this.writeLock = new Semaphore(1);
+		this.doneSignal = new CountDownLatch(1);
 	}
 	
 	public void connect(
@@ -57,9 +60,11 @@ public class MessageCenter implements Runnable {
 		handler.handshake(this.serverSocket.getInputStream(), this.serverSocket.getOutputStream());
 		this.handler = handler;
 		this.writeLock.release();
+		this.doneSignal.countDown();
 	}
 	
 	protected void sendData(byte[] data) throws IOException, InterruptedException {
+		this.doneSignal.await();
 		this.writeLock.acquire();
 		if (this.serverSocket == null) {
 			this.writeLock.release();
@@ -70,6 +75,7 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void sendMessageToUser(String service, String username, Message msg, int ttl) throws InterruptedException, IOException {
+		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -78,6 +84,7 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void sendMessageToServer(Message msg) throws InterruptedException, IOException {
+		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -86,6 +93,7 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void config(int digestThreshold, int compressThreshold, List<String> digestFields) throws IOException, InterruptedException {
+		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -94,6 +102,7 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void requestMessage(String id) throws InterruptedException, IOException {
+		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -102,6 +111,7 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void subscribe(Map<String, String> params) throws InterruptedException, IOException {
+		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -110,6 +120,7 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void unsubscribe(Map<String, String> params) throws InterruptedException, IOException {
+		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -135,6 +146,11 @@ public class MessageCenter implements Runnable {
 	
 	@Override
 	public void run() {
+		try {
+			this.doneSignal.await();
+		} catch (InterruptedException e1) {
+			return;
+		}
 		InputStream istream = null;
 		OutputStream ostream = null;
 		
@@ -167,18 +183,27 @@ loop:
 					try {
 						this.writeLock.acquire();
 						ostream.write(r);
-						this.writeLock.release();
-					} catch (Exception e) {
+					} catch (IOException e) {
 						this.writeLock.release();
 						this.handler.onError(e);
 						break loop;
+					} catch (InterruptedException e) {
+						this.writeLock.release();
+						break loop;
 					}
+					this.writeLock.release();
+						
 				}
 			}
 		} while (true);
 	}
 	
 	public void stop() {
+		try {
+			this.writeLock.acquire();
+		} catch (InterruptedException e1) {
+			// WTF..
+		}
 		this.handler.onCloseStart();
 		try {
 			this.serverSocket.close();
@@ -187,7 +212,7 @@ loop:
 		}
 		this.serverSocket = null;
 		this.handler.onClosed();
+		this.writeLock.release();
 	}
-
 		
 }
