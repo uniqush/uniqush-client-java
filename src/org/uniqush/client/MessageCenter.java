@@ -19,7 +19,6 @@ package org.uniqush.client;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.interfaces.RSAPublicKey;
@@ -27,20 +26,20 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import javax.security.auth.login.LoginException;
 
 public class MessageCenter implements Runnable {
 	private Socket serverSocket;
 	protected ConnectionHandler handler;
-	private Semaphore writeLock;
-	private CountDownLatch doneSignal;
+	private Semaphore sockSem;
 	
 	public MessageCenter() {
 		this.serverSocket = null;
-		this.writeLock = new Semaphore(1);
-		this.doneSignal = new CountDownLatch(1);
+		
+		// At first, the socket is not ready,
+		// so there's no resource.
+		this.sockSem = new Semaphore(0);
 	}
 	
 	public void connect(
@@ -51,7 +50,6 @@ public class MessageCenter implements Runnable {
 			String token,
 			RSAPublicKey pub,
 			MessageHandler msgHandler) throws UnknownHostException, IOException, LoginException, InterruptedException {
-		this.writeLock.acquire();
 		if (this.serverSocket != null) {
 			this.serverSocket.close();
 		}
@@ -59,23 +57,30 @@ public class MessageCenter implements Runnable {
 		ConnectionHandler handler = new ConnectionHandler(msgHandler, service, username, token, pub);
 		handler.handshake(this.serverSocket.getInputStream(), this.serverSocket.getOutputStream());
 		this.handler = handler;
-		this.writeLock.release();
-		this.doneSignal.countDown();
+		
+		this.sockSem.release();
 	}
 	
-	protected void sendData(byte[] data) throws IOException, InterruptedException {
-		this.doneSignal.await();
-		this.writeLock.acquire();
+	protected synchronized void sendData(byte[] data) throws  IOException, InterruptedException {
+		try {
+			this.sockSem.acquire();
+		} catch (InterruptedException e1) {
+			throw e1;
+		}
 		if (this.serverSocket == null) {
-			this.writeLock.release();
+			this.sockSem.release();
 			throw new IOException("Not ready");
 		}
-		this.serverSocket.getOutputStream().write(data);
-		this.writeLock.release();
+		try {
+			this.serverSocket.getOutputStream().write(data);
+		} catch (IOException e) {
+			this.sockSem.release();
+			throw e;
+		}
+		this.sockSem.release();
 	}
 	
 	public void sendMessageToUser(String service, String username, Message msg, int ttl) throws InterruptedException, IOException {
-		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -84,7 +89,6 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void sendMessageToServer(Message msg) throws InterruptedException, IOException {
-		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -93,7 +97,6 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void config(int digestThreshold, int compressThreshold, List<String> digestFields) throws IOException, InterruptedException {
-		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -102,7 +105,6 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void requestMessage(String id) throws InterruptedException, IOException {
-		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -111,7 +113,6 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void subscribe(Map<String, String> params) throws InterruptedException, IOException {
-		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -120,7 +121,6 @@ public class MessageCenter implements Runnable {
 	}
 	
 	public void unsubscribe(Map<String, String> params) throws InterruptedException, IOException {
-		this.doneSignal.await();
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
@@ -146,21 +146,21 @@ public class MessageCenter implements Runnable {
 	
 	@Override
 	public void run() {
+		InputStream istream = null;
 		try {
-			this.doneSignal.await();
+			this.sockSem.acquire();
 		} catch (InterruptedException e1) {
 			return;
 		}
-		InputStream istream = null;
-		OutputStream ostream = null;
 		
 		try {
 			istream = this.serverSocket.getInputStream();
-			ostream = this.serverSocket.getOutputStream();
 		} catch (IOException e) {
+			this.sockSem.release();
 			this.handler.onError(e);
 			return;
 		}
+		this.sockSem.release();
 		
 loop:
 		do {
@@ -169,7 +169,13 @@ loop:
 				break;
 			}
 			byte[] data = new byte[len];
+			try {
+				this.sockSem.acquire();
+			} catch (InterruptedException e1) {
+				break;
+			}
 			int n = readFull(istream, data, len);
+			this.sockSem.release();
 			if (n != len) {
 				break;
 			}
@@ -181,38 +187,32 @@ loop:
 				while (iter.hasNext()) {
 					byte[] r = iter.next();
 					try {
-						this.writeLock.acquire();
-						ostream.write(r);
+						this.sendData(r);
 					} catch (IOException e) {
-						this.writeLock.release();
 						this.handler.onError(e);
 						break loop;
 					} catch (InterruptedException e) {
-						this.writeLock.release();
 						break loop;
-					}
-					this.writeLock.release();
-						
+					}	
 				}
 			}
 		} while (true);
 	}
 	
 	public void stop() {
-		try {
-			this.writeLock.acquire();
-		} catch (InterruptedException e1) {
-			// WTF..
-		}
+		// There is no more socket resource.
+		// call connect() to get one.
+		this.sockSem.acquireUninterruptibly();
 		this.handler.onCloseStart();
 		try {
-			this.serverSocket.close();
+			if (this.serverSocket != null) {
+				this.serverSocket.close();
+			}
 		} catch (IOException e) {
 			// WTF. What do you want me to do?
 		}
 		this.serverSocket = null;
 		this.handler.onClosed();
-		this.writeLock.release();
 	}
 		
 }
