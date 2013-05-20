@@ -27,6 +27,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import javax.security.auth.login.LoginException;
 
 public class MessageCenter implements Runnable {
@@ -34,12 +36,16 @@ public class MessageCenter implements Runnable {
 	protected ConnectionHandler handler;
 	private Semaphore sockSem;
 	
+	private AtomicInteger nrSockets;
+	
 	public MessageCenter() {
 		this.serverSocket = null;
 		
 		// At first, the socket is not ready,
 		// so there's no resource.
 		this.sockSem = new Semaphore(0);
+		
+		this.nrSockets = new AtomicInteger(0);
 	}
 	
 	public void connect(
@@ -50,22 +56,23 @@ public class MessageCenter implements Runnable {
 			String token,
 			RSAPublicKey pub,
 			MessageHandler msgHandler) throws UnknownHostException, IOException, LoginException, InterruptedException {
-		if (this.serverSocket != null) {
-			this.serverSocket.close();
+		synchronized (this) {
+			if (this.serverSocket != null) {
+				this.serverSocket.close();
+			}
+			this.serverSocket = new Socket(address, port);
+			ConnectionHandler handler = new ConnectionHandler(msgHandler, service, username, token, pub);
+			handler.handshake(this.serverSocket.getInputStream(), this.serverSocket.getOutputStream());
+			this.handler = handler;
+			
+			this.sockSem.release();
+			this.nrSockets.set(1);
 		}
-		this.serverSocket = new Socket(address, port);
-		ConnectionHandler handler = new ConnectionHandler(msgHandler, service, username, token, pub);
-		handler.handshake(this.serverSocket.getInputStream(), this.serverSocket.getOutputStream());
-		this.handler = handler;
-		
-		this.sockSem.release();
 	}
 	
 	protected synchronized void sendData(byte[] data) throws  IOException, InterruptedException {
-		try {
-			this.sockSem.acquire();
-		} catch (InterruptedException e1) {
-			throw e1;
+		if(!this.sockSem.tryAcquire()) {
+			throw new IOException("Not ready");
 		}
 		if (this.serverSocket == null) {
 			this.sockSem.release();
@@ -169,13 +176,7 @@ loop:
 				break;
 			}
 			byte[] data = new byte[len];
-			try {
-				this.sockSem.acquire();
-			} catch (InterruptedException e1) {
-				break;
-			}
 			int n = readFull(istream, data, len);
-			this.sockSem.release();
 			if (n != len) {
 				break;
 			}
@@ -200,19 +201,25 @@ loop:
 	}
 	
 	public void stop() {
-		// There is no more socket resource.
-		// call connect() to get one.
-		this.sockSem.acquireUninterruptibly();
-		this.handler.onCloseStart();
-		try {
-			if (this.serverSocket != null) {
-				this.serverSocket.close();
+		synchronized (this) {
+
+			if (this.nrSockets.get() > 0) {
+				// There is no more socket resource.
+				// call connect() to get one.
+				this.sockSem.acquireUninterruptibly();
+				this.handler.onCloseStart();
+				try {
+					if (this.serverSocket != null) {
+						this.serverSocket.close();
+					}
+				} catch (IOException e) {
+					// WTF. What do you want me to do?
+				}
+				this.serverSocket = null;
+				this.handler.onClosed();
 			}
-		} catch (IOException e) {
-			// WTF. What do you want me to do?
+			this.nrSockets.set(0);
 		}
-		this.serverSocket = null;
-		this.handler.onClosed();
 	}
 		
 }

@@ -17,20 +17,32 @@
 
 package org.uniqush.client;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
-public class Message {
-	private Map<String, String> header;
+public class Message implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	private HashMap<String, String> header;
 	private byte[] body;
 	
 	public Message() {
+		this.header = new HashMap<String, String>();
 	}
 	
 	public Message(Map<String, String> header, byte[] body) {
-		this.header = header;
+		Iterator<Entry<String, String>> iter = header.entrySet().iterator();
+		this.header = new HashMap<String, String>(header.size());
+		
+		while (iter.hasNext()) {
+			Entry<String, String> entry = iter.next();
+			this.header.put(entry.getKey(), entry.getValue());
+		}
 		this.body = body;
 	}
 	
