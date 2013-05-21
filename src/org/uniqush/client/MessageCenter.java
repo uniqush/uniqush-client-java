@@ -198,6 +198,7 @@ loop:
 				}
 			}
 		} while (true);
+		this.stop();
 	}
 	
 	public void stop() {
