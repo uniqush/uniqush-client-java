@@ -134,6 +134,14 @@ public class MessageCenter implements Runnable {
 		byte[] data = this.handler.marshalSubscriptionCommand(params, false);
 		sendData(data);
 	}
+	
+	public void setVisibility(boolean visible) throws IOException, InterruptedException {
+		if (this.handler == null) {
+			throw new IOException("Not ready");
+		}
+		byte[] data = this.handler.marshalSetVisibilityCommand(visible);
+		sendData(data);
+	}
 
 	private int readFull(InputStream istream, byte[] buf, int length) {
 		int n = 0;

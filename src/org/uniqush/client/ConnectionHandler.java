@@ -137,6 +137,16 @@ class ConnectionHandler {
 		return this.marshaler.marshalCommand(cmd, compress);
 	}
 	
+	public byte[] marshalSetVisibilityCommand(boolean visible) throws ProtocolException {
+		Command cmd = new Command(Command.CMD_SET_VISIBILITY, null);
+		if (visible) {
+			cmd.AppendParameter("1");
+		} else {
+			cmd.AppendParameter("0");
+		}
+		return this.marshalCommand(cmd);
+	}
+	
 	public byte[] marshalSubscriptionCommand(Map<String, String> params, boolean sub) throws ProtocolException {
 		if (params == null || params.size() <= 0) {
 			throw new IllegalArgumentException("empty parameter");
