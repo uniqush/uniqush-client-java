@@ -103,6 +103,14 @@ public class MessageCenter implements Runnable {
 		sendData(data);
 	}
 	
+	public void requestAllCachedMessages(String... excludes) throws IOException, InterruptedException {
+		if (this.handler == null) {
+			throw new IOException("Not ready");
+		}
+		byte[] data = this.handler.marshalRequestAllCachedMessagesCommand(excludes);
+		sendData(data);
+	}
+	
 	public void config(int digestThreshold, int compressThreshold, List<String> digestFields) throws IOException, InterruptedException {
 		if (this.handler == null) {
 			throw new IOException("Not ready");
