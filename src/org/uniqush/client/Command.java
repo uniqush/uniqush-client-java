@@ -131,8 +131,10 @@ class Command {
 	// Message:
 	//   Header: parameters
 	public final static int CMD_SUBSCRIPTION = 11;
+	
+	public final static int CMD_REQ_ALL_CACHED = 12;
 
-	public final static int CMD_NR_CMDS = 12;
+	public final static int CMD_NR_CMDS = 13;
 	
 	private byte type;
 	private ArrayList<String> params;

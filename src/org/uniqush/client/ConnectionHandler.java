@@ -17,11 +17,13 @@
 
 package org.uniqush.client;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StreamCorruptedException;
 import java.net.ProtocolException;
+import java.nio.charset.Charset;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -55,6 +57,8 @@ class ConnectionHandler {
 	final static int NONCE_LENGTH = 32;
 	final static byte CURRENT_PROTOCOL_VERSION = 1;
 
+	private final Charset UTF_8 = Charset.forName("UTF-8");
+	
 	private MessageHandler handler;
 	private String service;
 	private String username;
@@ -135,6 +139,25 @@ class ConnectionHandler {
 			compress = true;
 		}
 		return this.marshaler.marshalCommand(cmd, compress);
+	}
+	
+	public byte[] marshalRequestAllCachedMessagesCommand(String... excludes) throws ProtocolException {
+		Message msg = null;
+		if (excludes.length > 0) {
+			ByteArrayOutputStream stream = new ByteArrayOutputStream(excludes.length * 90);
+			for (String id : excludes) {
+				byte[] bid = id.getBytes(UTF_8);
+				try {
+					stream.write(bid);
+				} catch (IOException e) {
+					// HOW?
+				}
+				stream.write(0);
+			}
+			msg = new Message(null, stream.toByteArray());
+		}
+		Command cmd = new Command(Command.CMD_REQ_ALL_CACHED, msg);
+		return this.marshalCommand(cmd);
 	}
 	
 	public byte[] marshalSetVisibilityCommand(boolean visible) throws ProtocolException {
