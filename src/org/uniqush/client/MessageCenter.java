@@ -23,6 +23,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -103,11 +104,11 @@ public class MessageCenter implements Runnable {
 		sendData(data);
 	}
 	
-	public void requestAllCachedMessages(String... excludes) throws IOException, InterruptedException {
+	public void requestAllSince(Date since) throws IOException, InterruptedException {
 		if (this.handler == null) {
 			throw new IOException("Not ready");
 		}
-		byte[] data = this.handler.marshalRequestAllCachedMessagesCommand(excludes);
+		byte[] data = this.handler.marshalRequestAllSince(since);
 		sendData(data);
 	}
 	
