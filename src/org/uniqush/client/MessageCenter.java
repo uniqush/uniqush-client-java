@@ -51,7 +51,7 @@ public class MessageCenter implements Runnable {
 		// so there's no resource.
 		this.sockSem = new Semaphore(0);
 		this.connHandlerLock = new ReentrantReadWriteLock();
-		
+		this.connHandlerLock.writeLock().lock();
 		this.nrSockets = new AtomicInteger(0);
 		this.credentialProvider = cp;
 	}
@@ -73,6 +73,7 @@ public class MessageCenter implements Runnable {
 			
 			this.sockSem.release();
 			this.nrSockets.set(1);
+			this.connHandlerLock.writeLock().unlock();
 		}
 	}
 	
@@ -245,6 +246,7 @@ loop:
 				// There is no more socket resource.
 				// call connect() to get one.
 				this.sockSem.acquireUninterruptibly();
+				this.connHandlerLock.writeLock().lock();
 				this.handler.onCloseStart();
 				try {
 					if (this.serverSocket != null) {
