@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.security.auth.login.LoginException;
 
@@ -35,8 +37,10 @@ public class MessageCenter implements Runnable {
 	
 	private CredentialProvider credentialProvider;
 	private Socket serverSocket;
-	protected ConnectionHandler handler;
 	private Semaphore sockSem;
+
+	private ConnectionHandler handler;
+	private ReadWriteLock connHandlerLock;
 	
 	private AtomicInteger nrSockets;
 	
@@ -46,6 +50,7 @@ public class MessageCenter implements Runnable {
 		// At first, the socket is not ready,
 		// so there's no resource.
 		this.sockSem = new Semaphore(0);
+		this.connHandlerLock = new ReentrantReadWriteLock();
 		
 		this.nrSockets = new AtomicInteger(0);
 		this.credentialProvider = cp;
@@ -88,68 +93,83 @@ public class MessageCenter implements Runnable {
 		this.sockSem.release();
 	}
 	
-	public void sendMessageToUser(String service, String username, Message msg, int ttl) throws InterruptedException, IOException {
+	interface DataMarshaler {
+		public byte[] marshal() throws InterruptedException, IOException;
+	}
+	
+	protected void marshalThenSend(DataMarshaler m)  throws InterruptedException, IOException {
+		this.connHandlerLock.readLock().lock();
 		if (this.handler == null) {
+			this.connHandlerLock.readLock().unlock();
 			throw new IOException("Not ready");
 		}
-		byte [] data = this.handler.marshalMessageToUser(service, username, msg, ttl);
+		byte [] data = m.marshal();
+		this.connHandlerLock.readLock().unlock();
 		sendData(data);
 	}
 	
-	public void sendMessageToServer(Message msg) throws InterruptedException, IOException {
-		if (this.handler == null) {
-			throw new IOException("Not ready");
-		}
-		byte[] data = this.handler.marshalMessageToServer(msg);
-		sendData(data);
+	public void sendMessageToUser(final String service, final String username, final Message msg, final int ttl) throws InterruptedException, IOException {
+		marshalThenSend(new DataMarshaler() {
+			public byte[] marshal() throws InterruptedException, IOException {
+				return handler.marshalMessageToUser(service, username, msg, ttl);
+			}
+		});
 	}
 	
-	public void requestAllSince(Date since) throws IOException, InterruptedException {
-		if (this.handler == null) {
-			throw new IOException("Not ready");
-		}
-		byte[] data = this.handler.marshalRequestAllSince(since);
-		sendData(data);
+	public void sendMessageToServer(final Message msg) throws InterruptedException, IOException {
+		marshalThenSend(new DataMarshaler() {
+			public byte[] marshal() throws InterruptedException, IOException {
+				return handler.marshalMessageToServer(msg);
+			}
+		});
 	}
 	
-	public void config(int digestThreshold, int compressThreshold, List<String> digestFields) throws IOException, InterruptedException {
-		if (this.handler == null) {
-			throw new IOException("Not ready");
-		}
-		byte[] data = this.handler.marshalConfigCommand(digestThreshold, compressThreshold, digestFields);
-		sendData(data);
+	public void requestAllSince(final Date since) throws IOException, InterruptedException {
+		marshalThenSend(new DataMarshaler() {
+			public byte[] marshal() throws InterruptedException, IOException {
+				return handler.marshalRequestAllSince(since);
+			}
+		});
 	}
 	
-	public void requestMessage(String id) throws InterruptedException, IOException {
-		if (this.handler == null) {
-			throw new IOException("Not ready");
-		}
-		byte[] data = this.handler.marshalRequestMessageCommand(id);
-		sendData(data);
+	public void config(final int digestThreshold, final int compressThreshold, final List<String> digestFields) throws IOException, InterruptedException {
+		marshalThenSend(new DataMarshaler() {
+			public byte[] marshal() throws InterruptedException, IOException {
+				return handler.marshalConfigCommand(digestThreshold, compressThreshold, digestFields);
+			}
+		});
 	}
 	
-	public void subscribe(Map<String, String> params) throws InterruptedException, IOException {
-		if (this.handler == null) {
-			throw new IOException("Not ready");
-		}
-		byte[] data = this.handler.marshalSubscriptionCommand(params, true);
-		sendData(data);
+	public void requestMessage(final String id) throws InterruptedException, IOException {
+		marshalThenSend(new DataMarshaler() {
+			public byte[] marshal() throws InterruptedException, IOException {
+				return handler.marshalRequestMessageCommand(id);
+			}
+		});
 	}
 	
-	public void unsubscribe(Map<String, String> params) throws InterruptedException, IOException {
-		if (this.handler == null) {
-			throw new IOException("Not ready");
-		}
-		byte[] data = this.handler.marshalSubscriptionCommand(params, false);
-		sendData(data);
+	public void subscribe(final Map<String, String> params) throws InterruptedException, IOException {
+		marshalThenSend(new DataMarshaler() {
+			public byte[] marshal() throws InterruptedException, IOException {
+				return handler.marshalSubscriptionCommand(params, true);
+			}
+		});
 	}
 	
-	public void setVisibility(boolean visible) throws IOException, InterruptedException {
-		if (this.handler == null) {
-			throw new IOException("Not ready");
-		}
-		byte[] data = this.handler.marshalSetVisibilityCommand(visible);
-		sendData(data);
+	public void unsubscribe(final Map<String, String> params) throws InterruptedException, IOException {
+		marshalThenSend(new DataMarshaler() {
+			public byte[] marshal() throws InterruptedException, IOException {
+				return handler.marshalSubscriptionCommand(params, false);
+			}
+		});
+	}
+	
+	public void setVisibility(final boolean visible) throws IOException, InterruptedException {
+		marshalThenSend(new DataMarshaler() {
+			public byte[] marshal() throws InterruptedException, IOException {
+				return handler.marshalSetVisibilityCommand(visible);
+			}
+		});
 	}
 
 	private int readFull(InputStream istream, byte[] buf, int length) {
