@@ -132,9 +132,39 @@ class Command {
 	//   Header: parameters
 	public final static int CMD_SUBSCRIPTION = 11;
 	
+    // Sent from client.
+    // 
+    // Params:
+    //   0. An string representing an integer (base 10). This integer represents
+    //      a time point. The server should retrieve all valid messages sent to the
+    //      user since the specified time point. The representation of the time point
+    //      is in UNIX time: the number of seconds elapsed since January 1, 1970 UTC.
+    // 
+    // This command will let the server to re-send all cached message since a
+    // specified time point.
+    // 
+    // Each message will be treated as normal message, i.e. if it is too large,
+    // a digest will be sent instead.
+    // 
+    // Normally, when the client got a "good" connection with server, it should first
+    // request messages based on the digests it received. After retrieving all those
+    // message, it may want to request all messages remaining in the cache. Because not
+    // all message digests are guaranteed to be received by the client. (The definition
+    // of "good connection" may be vary. Normally it means cheap and stable
+    // network, like home wifi.)
 	public final static int CMD_REQ_ALL_CACHED = 12;
-
-	public final static int CMD_NR_CMDS = 13;
+    
+	// Sent from server.
+    // 
+    // Params:
+    //  0 - N. All possible addresses that the client can connect to.
+    // 
+    // If a client received this command, it should disconnect with the server immediately.
+    // The server provides several alternative servers which are all uniqush-conn
+    // instances. The client could choose any one of them to connect with.
+	public final static int CMD_REDIRECT = 13;
+	
+	public final static int CMD_NR_CMDS = 14;
 	
 	private byte type;
 	private ArrayList<String> params;

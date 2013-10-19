@@ -213,6 +213,8 @@ loop:
 			if (len <= 0) {
 				break;
 			}
+			
+			// XXX GC is not free.
 			byte[] data = new byte[len];
 			int n = readFull(istream, data, len);
 			if (n != len) {

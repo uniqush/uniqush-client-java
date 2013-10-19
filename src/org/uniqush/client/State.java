@@ -23,15 +23,25 @@ abstract class State {
 	protected MessageHandler handler;
 	protected String service;
 	protected String username;
+	protected Action action;
 	
 	public State(MessageHandler handler, String service, String username) {
 		this.handler = handler;
 		this.service = service;
 		this.username = username;
+		this.action = null;
 	}
 	
 	abstract public int chunkSize();
 	abstract public State transit(byte[] data, List<byte[]> reply);
+	
+	protected void setAction(Action a) {
+		this.action = a;
+	}
+	
+	public Action getAction() {
+		return this.action;
+	}
 
 	public void onError(Exception e) {
 		if (this.handler != null) {
