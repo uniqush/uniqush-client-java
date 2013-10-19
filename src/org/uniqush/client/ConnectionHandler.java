@@ -57,10 +57,12 @@ class ConnectionHandler {
 	final static byte CURRENT_PROTOCOL_VERSION = 1;
 
 	private MessageHandler handler;
+	
+	private CredentialProvider credentialProvider;
 	private String service;
 	private String username;
-	private String token;
-	private RSAPublicKey rsaPub;
+	private String addr;
+	private int port;
 	
 	private CommandMarshaler marshaler;
 	
@@ -79,16 +81,18 @@ class ConnectionHandler {
 	*/
 
 	public ConnectionHandler(MessageHandler handler,
+			String addr,
+			int port,
 			String service,
 			String username,
-			String token,
-			RSAPublicKey pub) {
+			CredentialProvider cp) {
 		this.handler = handler;
 		this.service = service;
 		this.username = username;
-		this.token = token;
-		this.rsaPub = pub;
+		this.addr = addr;
+		this.port = port;
 		this.compressThreshold = 512;
+		this.credentialProvider = cp;
 		
 		this.currentState = new ErrorState(this.handler, this.service, this.username);
 	}
@@ -231,6 +235,7 @@ class ConnectionHandler {
 	
 	public void handshake(InputStream istream,
 			OutputStream ostream) throws LoginException {
+		RSAPublicKey rsaPub = this.credentialProvider.getPublicKey(this.addr, this.port);
 		int siglen = (rsaPub.getModulus().bitLength() + 7)/8;
 		byte[] data = new byte[DH_PUBLIC_KEY_LENGTH + siglen + NONCE_LENGTH + 1];
 		int n = readFull(istream, data, data.length);
@@ -259,7 +264,7 @@ class ConnectionHandler {
 				// Yes, I'm talking about you, android.
 				sign = new RSASSAPSSVerifier("SHA256");
 			}
-			sign.initVerify(this.rsaPub);
+			sign.initVerify(rsaPub);
 			sign.update(data, 0, DH_PUBLIC_KEY_LENGTH + 1);
 			boolean goodsign = sign.verify(data, DH_PUBLIC_KEY_LENGTH + 1, siglen);
 			
@@ -290,7 +295,7 @@ class ConnectionHandler {
 			Command authCmd = new Command(Command.CMD_AUTH, null);
 			authCmd.AppendParameter(service);
 			authCmd.AppendParameter(username);
-			authCmd.AppendParameter(token);
+			authCmd.AppendParameter(this.credentialProvider.getToken(service, username));
 			
 			byte[] authData = marshaler.marshalCommand(authCmd, false);
 			ostream.write(authData);

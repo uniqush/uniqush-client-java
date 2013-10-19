@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
@@ -33,13 +32,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.security.auth.login.LoginException;
 
 public class MessageCenter implements Runnable {
+	
+	private CredentialProvider credentialProvider;
 	private Socket serverSocket;
 	protected ConnectionHandler handler;
 	private Semaphore sockSem;
 	
 	private AtomicInteger nrSockets;
 	
-	public MessageCenter() {
+	public MessageCenter(CredentialProvider cp) {
 		this.serverSocket = null;
 		
 		// At first, the socket is not ready,
@@ -47,6 +48,7 @@ public class MessageCenter implements Runnable {
 		this.sockSem = new Semaphore(0);
 		
 		this.nrSockets = new AtomicInteger(0);
+		this.credentialProvider = cp;
 	}
 	
 	public void connect(
@@ -54,15 +56,13 @@ public class MessageCenter implements Runnable {
 			int port,
 			String service,
 			String username,
-			String token,
-			RSAPublicKey pub,
 			MessageHandler msgHandler) throws UnknownHostException, IOException, LoginException, InterruptedException {
 		synchronized (this) {
 			if (this.serverSocket != null) {
 				this.serverSocket.close();
 			}
 			this.serverSocket = new Socket(address, port);
-			ConnectionHandler handler = new ConnectionHandler(msgHandler, service, username, token, pub);
+			ConnectionHandler handler = new ConnectionHandler(msgHandler, address, port, service, username, this.credentialProvider);
 			handler.handshake(this.serverSocket.getInputStream(), this.serverSocket.getOutputStream());
 			this.handler = handler;
 			
