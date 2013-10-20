@@ -74,16 +74,6 @@ class ConnectionHandler {
 	
 	private int compressThreshold;
 	
-	/*
-	private void printBytes(String name, byte[] buf, int offset, int length) {
-		System.out.print(name + " ");
-		for (int i = offset; i < offset + length; i++) {
-			System.out.printf("%d ", (int)(buf[i] & 0xFF));
-		}
-		System.out.println();
-	}
-	*/
-	
 	public String getService() {
 		return this.service;
 	}
@@ -331,6 +321,7 @@ class ConnectionHandler {
 			}
 			
 			n = marshaler.chunkSize(authData);
+			System.out.println("Chunksize: " + n);
 			byte[] chunk = new byte[n];
 			int len = readFull(istream, chunk, n);
 			if (len != n) {

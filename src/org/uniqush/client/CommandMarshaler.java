@@ -32,16 +32,6 @@ import org.iq80.snappy.Snappy;
 class CommandMarshaler {
 	private KeySet keySet;
 	
-	/*
-	private void printBytes(String name, byte[] buf, int offset, int length) {
-		System.out.print(name + " ");
-		for (int i = offset; i < offset + length; i++) {
-			System.out.printf("%d ", (int)(buf[i] & 0xFF));
-		}
-		System.out.println();
-	}
-	*/
-	
 	public CommandMarshaler(KeySet ks) {
 		this.keySet = ks;
 	}
@@ -51,6 +41,15 @@ class CommandMarshaler {
 	}
 	
 	public int chunkSize(byte[] prefix) {
+		// First two bytes: The data size (little endian)
+		// The data is sent in the form:
+		// | data size (2 bytes, little endian) | data | hmac
+		// So we add the size of the hmac to the data size,
+		// and yield the total size (data plus hmac).
+		int b0 = prefix[0] & 0xFF;
+		int b1 = prefix[1] & 0xFF;
+		return (b1 << 8) + (b0 << 0) + keySet.getDecryptHmacSize();
+		/*
 		int length = 0;
 		length = (int)(0xFF &prefix[1]);
 		length = length << 8;
@@ -58,6 +57,7 @@ class CommandMarshaler {
 		
 		length += keySet.getDecryptHmacSize();
 		return length;
+		*/
 	}
 	
 	public Command unmarshalCommand(byte[] encrypted) throws ShortBufferException, IllegalBlockSizeException, BadPaddingException, IOException {
@@ -66,11 +66,11 @@ class CommandMarshaler {
 		byte[] encoded = new byte[len];
 		keySet.decrypt(encrypted, 0, encoded, 0);
 		
-		int paddingLen = encoded[0] >> 3;
+		int paddingLen = ((int)(0xFF & encoded[0])) >> 3;
 		
 		byte[] data = new byte[encoded.length - 1 - paddingLen];
 		System.arraycopy(encoded, 1, data, 0, data.length);
-		if ((encoded[0] & Command.CMDFLAG_COMPRESS) != (byte) 0) {
+		if ((encoded[0] & Command.CMDFLAG_COMPRESS) != 0) {
 			//data = Snappy.uncompress(data);
 			System.out.println("Need to decompress");
 			data = Snappy.uncompress(data, 0, data.length);
@@ -85,8 +85,10 @@ class CommandMarshaler {
 		}
 		
 		// Command Length: little endian
-		prefix[0] = (byte)(length & 0xFF);
-		prefix[1] = (byte)(length & 0xFF00);
+		//  0  |  1
+		// LSB | MSB
+		prefix[0] = (byte)((length >>>  0) & 0xFF);
+		prefix[1] = (byte)((length >>>  8) & 0xFF);
 	}
 	
 	public byte[] marshalCommand(Command cmd, boolean compress) throws ProtocolException {

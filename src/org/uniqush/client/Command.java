@@ -298,8 +298,8 @@ class Command {
 		
 		ret[0] = this.type;
 		if (this.params != null) {
-			ret[1] = (byte) (0x0000000F & this.params.size());
-			ret[1] = (byte) (ret[1] << 4);
+			int b1 = (0x0000000F & this.params.size());
+			ret[1] = (byte) (b1 << 4);
 		}
 		
 		if (header != null) {
@@ -330,10 +330,10 @@ class Command {
 			return;
 		}
 		type = data[0];
-		int nrParams = data[1] >> 4;
-		int nrHeaders = data[2];
+		int nrParams = ((int)(data[1] & 0xFF)) >> 4;
+		int nrHeaders = (int)(data[2] & 0xFF);
 		nrHeaders = nrHeaders << 8;
-		nrHeaders |= data[3];
+		nrHeaders |= (int)(data[3] & 0xFF);
 		
 		int start = 4;
 		

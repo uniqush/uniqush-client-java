@@ -88,6 +88,7 @@ class KeySet {
 		serverHmac.update(prefix);
 		serverHmac.update(input, inputOffset, getEncryptedSize(len));
 		serverHmac.doFinal(hmac, 0);
+		
 		if (!bytesEq(hmac, 0, input, inputOffset + getEncryptedSize(len), hmacSz)) {
 			throw new StreamCorruptedException("unmached hmac");
 		}
