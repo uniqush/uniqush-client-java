@@ -40,6 +40,7 @@ public class ReadingChunkState extends State {
 	
 	protected State processCommand(Command cmd, List<byte[]> reply) throws StreamCorruptedException {
 		Action action = null;
+		System.out.println("Received command: " + cmd.getType());
 		switch (cmd.getType()) {
 		case Command.CMD_DATA:
 			if (handler != null) {

@@ -321,7 +321,6 @@ class ConnectionHandler {
 			}
 			
 			n = marshaler.chunkSize(authData);
-			System.out.println("Chunksize: " + n);
 			byte[] chunk = new byte[n];
 			int len = readFull(istream, chunk, n);
 			if (len != n) {

@@ -285,6 +285,17 @@ public class MessageCenter implements Runnable {
 					mhandler.onError(e);
 					break loop;
 				}
+				
+
+				this.sockLock.lock();
+				try {
+					istream = this.serverSocket.getInputStream();
+				} catch (IOException e) {
+					this.sockLock.unlock();
+					this.handler.onError(e);
+					return;
+				}
+				this.sockLock.unlock();
 				break;
 			case Action.ACTION_CLOSE:
 				break loop;
