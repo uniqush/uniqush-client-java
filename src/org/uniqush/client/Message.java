@@ -30,45 +30,47 @@ public class Message implements Serializable {
 	private static final long serialVersionUID = 1L;
 	private HashMap<String, String> header;
 	private byte[] body;
-	
+
 	public Message() {
 		this.header = new HashMap<String, String>();
 	}
-	
+
 	public Message(Map<String, String> header, byte[] body) {
-		Iterator<Entry<String, String>> iter = header.entrySet().iterator();
-		this.header = new HashMap<String, String>(header.size());
-		
-		while (iter.hasNext()) {
-			Entry<String, String> entry = iter.next();
-			this.header.put(entry.getKey(), entry.getValue());
+		if (header != null) {
+			Iterator<Entry<String, String>> iter = header.entrySet().iterator();
+			this.header = new HashMap<String, String>(header.size());
+
+			while (iter.hasNext()) {
+				Entry<String, String> entry = iter.next();
+				this.header.put(entry.getKey(), entry.getValue());
+			}
 		}
 		this.body = body;
 	}
-	
+
 	public Map<String, String> getHeader() {
 		return this.header;
 	}
-	
+
 	public String get(String key) {
 		return this.header.get(key);
 	}
-	
+
 	public void put(String key, String value) {
 		if (this.header == null) {
 			this.header = new HashMap<String, String>(3);
 		}
 		this.header.put(key, value);
 	}
-	
+
 	public void put(byte[] body) {
 		this.body = body;
 	}
-	
+
 	public byte[] getBody() {
 		return this.body;
 	}
-	
+
 	public boolean isEmpty() {
 		if (this.header != null) {
 			if (this.header.size() > 0) {
@@ -82,7 +84,7 @@ public class Message implements Serializable {
 		}
 		return true;
 	}
-	
+
 	public boolean equals(Message msg) {
 		if (msg.header == null && this.header != null) {
 			return false;
@@ -92,19 +94,20 @@ public class Message implements Serializable {
 			if (msg.header.size() != this.header.size()) {
 				return false;
 			}
-			Iterator<Entry<String, String>> iter = this.header.entrySet().iterator();
-			
+			Iterator<Entry<String, String>> iter = this.header.entrySet()
+					.iterator();
+
 			while (iter.hasNext()) {
 				Entry<String, String> entry = iter.next();
 				String key = entry.getKey();
 				String value = entry.getValue();
-				
+
 				if (!value.equals(msg.header.get(key))) {
 					return false;
 				}
 			}
 		}
-		
+
 		if (msg.body == null && this.body != null) {
 			return false;
 		} else if (msg.body != null && this.body == null) {

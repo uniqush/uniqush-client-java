@@ -88,6 +88,8 @@ public class ReadingChunkState extends State {
 			}
 			break;
 		case Command.CMD_REDIRECT:
+			
+			System.out.println("Received redirect command");
 			if (cmd.nrParameters() <= 0) {
 				// This is a bad command. Ignore it.
 				break;

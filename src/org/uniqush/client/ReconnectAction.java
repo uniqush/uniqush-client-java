@@ -44,6 +44,8 @@ class ReconnectAction extends Action {
 		
 		String[] parts = this.splitHostPort(addr);
 		
+		System.out.println("I was to to reconnect to " + addr);
+		
 		if (parts == null || parts.length != 2) {
 			return;
 		}

@@ -2,6 +2,8 @@ package org.uniqush.examples.java;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.util.Date;
+
 import javax.security.auth.login.LoginException;
 import org.uniqush.client.CredentialProvider;
 import org.uniqush.client.MessageCenter;
@@ -19,6 +21,12 @@ public class Echo {
 			th.start();
 			//Thread.sleep(6 * 1000);
 			//center.stop();
+			
+			// We want to retrieve all messages 10 min ago.
+			long now = new Date().getTime();
+			Date since = new Date(now - 10 * 60 * 1000);
+			center.requestAllSince(since);
+			
 			th.join();
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block

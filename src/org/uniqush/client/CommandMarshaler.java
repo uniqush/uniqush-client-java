@@ -52,9 +52,9 @@ class CommandMarshaler {
 	
 	public int chunkSize(byte[] prefix) {
 		int length = 0;
-		length = prefix[1];
+		length = (int)(0xFF &prefix[1]);
 		length = length << 8;
-		length |= prefix[0];
+		length |= (int)(0xFF & prefix[0]);
 		
 		length += keySet.getDecryptHmacSize();
 		return length;
