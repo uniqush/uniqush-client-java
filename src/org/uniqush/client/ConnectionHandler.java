@@ -34,6 +34,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -55,6 +56,8 @@ class ConnectionHandler {
 	final static int DH_PUBLIC_KEY_LENGTH = 256;
 	final static int NONCE_LENGTH = 32;
 	final static byte CURRENT_PROTOCOL_VERSION = 1;
+	
+	private static AtomicInteger nextId = new AtomicInteger(0);
 
 	private MessageHandler handler;
 	
@@ -63,6 +66,7 @@ class ConnectionHandler {
 	private String username;
 	private String addr;
 	private int port;
+	private AtomicInteger id;
 	
 	private CommandMarshaler marshaler;
 	
@@ -79,6 +83,22 @@ class ConnectionHandler {
 		System.out.println();
 	}
 	*/
+	
+	public String getService() {
+		return this.service;
+	}
+	
+	public String getUsername() {
+		return this.username;
+	}
+	
+	public MessageHandler getHandler() {
+		return this.handler;
+	}
+	
+	public int getId() {
+		return this.id.get();
+	}
 
 	public ConnectionHandler(MessageHandler handler,
 			String addr,
@@ -93,6 +113,8 @@ class ConnectionHandler {
 		this.port = port;
 		this.compressThreshold = 512;
 		this.credentialProvider = cp;
+		
+		this.id = new AtomicInteger(ConnectionHandler.nextId.addAndGet(1));
 		
 		this.currentState = new ErrorState(this.handler, this.service, this.username);
 	}
@@ -129,8 +151,9 @@ class ConnectionHandler {
 		return this.currentState.chunkSize();
 	}
 	
-	public void onData(byte[] data, List<byte[]> reply) {
+	public Action onData(byte[] data, List<byte[]> reply) {
 		this.currentState = this.currentState.transit(data, reply);
+		return this.currentState.getAction();
 	}
 	
 	protected byte[] marshalCommand(Command cmd) throws ProtocolException {

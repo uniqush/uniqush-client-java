@@ -1,6 +1,5 @@
 package org.uniqush.client;
 
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,17 +37,16 @@ class ReconnectAction extends Action {
 		return ret;
 	}
 	
-	public ReconnectAction(List<String> addresses) {
+	public ReconnectAction(String addr) {
 		super(Action.ACTION_RECONNECT);
 		host = null;
 		port = -1;
-		if (addresses == null || addresses.size() == 0) {
+		
+		String[] parts = this.splitHostPort(addr);
+		
+		if (parts == null || parts.length != 2) {
 			return;
 		}
-		
-		int idx = (int) (Math.random() * addresses.size());
-		
-		String[] parts = this.splitHostPort(addresses.get(idx));
 		
 		host = parts[0];
 		port = Integer.parseInt(parts[1]);

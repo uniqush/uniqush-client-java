@@ -20,6 +20,7 @@ package org.uniqush.client;
 import java.io.StreamCorruptedException;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 public class ReadingChunkState extends State {
 	
@@ -38,6 +39,7 @@ public class ReadingChunkState extends State {
 	}
 	
 	protected State processCommand(Command cmd, List<byte[]> reply) throws StreamCorruptedException {
+		Action action = null;
 		switch (cmd.getType()) {
 		case Command.CMD_DATA:
 			if (handler != null) {
@@ -85,8 +87,24 @@ public class ReadingChunkState extends State {
 				this.handler.onMessageDigestFromUser(service, sender, size, msgId, info);
 			}
 			break;
+		case Command.CMD_REDIRECT:
+			if (cmd.nrParameters() <= 0) {
+				// This is a bad command. Ignore it.
+				break;
+			}
+			
+			// randomly choose a server to connect;
+			Random r = new Random();
+			int idx = r.nextInt(cmd.nrParameters());
+			action = new ReconnectAction(cmd.getParameter(idx));
+			break;
+		case Command.CMD_BYE:
+			action = new CloseAction();
+			break;
 		}
-		return new ReadingChunkSizeState(this.handler, this.marshaler, service, service);
+		State ret = new ReadingChunkSizeState(this.handler, this.marshaler, service, service);
+		ret.setAction(action);
+		return ret;
 	}
 	
 	@Override
