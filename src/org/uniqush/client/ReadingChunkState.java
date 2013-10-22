@@ -44,7 +44,7 @@ public class ReadingChunkState extends State {
 		switch (cmd.getType()) {
 		case Command.CMD_DATA:
 			if (handler != null) {
-				handler.onMessageFromServer(cmd.getParameter(0), cmd.getMessage());
+				handler.onMessageFromServer(this.service, this.username, cmd.getParameter(0), cmd.getMessage());
 			}
 			break;
 		case Command.CMD_FWD:
@@ -59,7 +59,7 @@ public class ReadingChunkState extends State {
 			}
 			String id = cmd.getParameter(2);
 			if (this.handler != null) {
-				this.handler.onMessageFromUser(service, sender, id, cmd.getMessage());
+				this.handler.onMessageFromUser(this.service, this.username, service, sender, id, cmd.getMessage());
 			}
 			break;
 		case Command.CMD_DIGEST:
@@ -79,13 +79,13 @@ public class ReadingChunkState extends State {
 			}
 			sender = cmd.getParameter(2);
 			if (sender == null) {
-				this.handler.onMessageDigestFromServer(size, msgId, info);
+				this.handler.onMessageDigestFromServer(this.service, this.username, size, msgId, info);
 			} else {
 				service = cmd.getParameter(3);
 				if (service == null) {
 					service = this.service;
 				}
-				this.handler.onMessageDigestFromUser(service, sender, size, msgId, info);
+				this.handler.onMessageDigestFromUser(this.service, this.username, service, sender, size, msgId, info);
 			}
 			break;
 		case Command.CMD_REDIRECT:

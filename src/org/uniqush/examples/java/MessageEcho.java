@@ -47,7 +47,7 @@ class MessageEcho implements MessageHandler {
 	}
 
 	@Override
-	public void onMessageFromServer(String id, Message msg) {
+	public void onMessageFromServer(String dstService, String dstUser, String id, Message msg) {
 		System.out.printf("Message Received from server with id %s: ", id);
 		printMessage(msg);
 		System.out.println();
@@ -63,7 +63,7 @@ class MessageEcho implements MessageHandler {
 	}
 
 	@Override
-	public void onMessageFromUser(String service, String username, String id,
+	public void onMessageFromUser(String dstService, String dstUser, String service, String username, String id,
 			Message msg) {
 		System.out.printf("Message Received from [service=%s] %s with id %s:", service, username, id);
 		printMessage(msg);
@@ -81,7 +81,7 @@ class MessageEcho implements MessageHandler {
 	}
 
 	@Override
-	public void onMessageDigestFromServer(int size, String id,
+	public void onMessageDigestFromServer(String dstService, String dstUser, int size, String id,
 			Map<String, String> parameters) {
 		System.out.printf("received message digest from server: size=%d, id=%s\n", size, id);
 		try {
@@ -97,7 +97,7 @@ class MessageEcho implements MessageHandler {
 	}
 
 	@Override
-	public void onMessageDigestFromUser(String service, String username,
+	public void onMessageDigestFromUser(String dstService, String dstUser, String service, String username,
 			int size, String id, Map<String, String> parameters) {
 		System.out.printf("received message digest from %s:%s: size=%d, id=%s\n", service, username, size, id);
 		try {

@@ -20,10 +20,10 @@ package org.uniqush.client;
 import java.util.Map;
 
 public interface MessageHandler {
-	public void onMessageFromServer(String id, Message msg);
-	public void onMessageFromUser(String service, String username, String id, Message msg);
-	public void onMessageDigestFromServer(int size, String id, Map<String, String> parameters);
-	public void onMessageDigestFromUser(String service, String username, int size, String id, Map<String, String> parameters);
+	public void onMessageFromServer(String dstService, String dstUser, String id, Message msg);
+	public void onMessageFromUser(String dstService, String dstUser, String srcService, String srcUser, String id, Message msg);
+	public void onMessageDigestFromServer(String dstService, String dstUser, int size, String id, Map<String, String> parameters);
+	public void onMessageDigestFromUser(String dstService, String dstUser, String srcService, String srcUser, int size, String id, Map<String, String> parameters);
 	
 	public void onCloseStart();
 	public void onClosed();
