@@ -17,10 +17,15 @@
 
 package org.uniqush.client;
 
+import java.io.IOException;
 import java.io.StreamCorruptedException;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.ShortBufferException;
 
 public class ReadingChunkState extends State {
 	
@@ -120,7 +125,19 @@ public class ReadingChunkState extends State {
 		try {
 			Command cmd = marshaler.unmarshalCommand(data);
 			return processCommand(cmd, reply);
-		} catch (Exception e) {
+		} catch (StreamCorruptedException e) {
+			this.onError(e);
+			return new ErrorState(this.handler, service, username);
+		} catch (ShortBufferException e) {
+			this.onError(e);
+			return new ErrorState(this.handler, service, username);
+		} catch (IllegalBlockSizeException e) {
+			this.onError(e);
+			return new ErrorState(this.handler, service, username);
+		} catch (BadPaddingException e) {
+			this.onError(e);
+			return new ErrorState(this.handler, service, username);
+		} catch (IOException e) {
 			this.onError(e);
 			return new ErrorState(this.handler, service, username);
 		}

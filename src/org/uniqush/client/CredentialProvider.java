@@ -22,9 +22,25 @@ import java.security.interfaces.RSAPublicKey;
 /**
  * The implementation should provide credential information like
  * the public key of the server, the token for some user.
+ * 
+ * Since uniqush client library will not try to store credential
+ * information, app developers should find their own why to implement
+ * this interface securely.
+ * 
  * @author monnand
  */
 public interface CredentialProvider {
+	/**
+	 * @param service
+	 * @param username
+	 * @return The token for the given user.
+	 */
 	String getToken(String service, String username);
-	RSAPublicKey getPublicKey(String addr, int port);
+	
+	/**
+	 * @param host
+	 * @param port
+	 * @return The RSA public key for the server.
+	 */
+	RSAPublicKey getPublicKey(String host, int port);
 }
