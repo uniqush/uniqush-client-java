@@ -84,13 +84,13 @@ public class ReadingChunkState extends State {
 			}
 			sender = cmd.getParameter(2);
 			if (sender == null) {
-				this.handler.onMessageDigestFromServer(this.service, this.username, size, msgId, info);
+				this.handler.onMessageDigestFromServer(true, this.service, this.username, size, msgId, info);
 			} else {
 				service = cmd.getParameter(3);
 				if (service == null) {
 					service = this.service;
 				}
-				this.handler.onMessageDigestFromUser(this.service, this.username, service, sender, size, msgId, info);
+				this.handler.onMessageDigestFromUser(true, this.service, this.username, service, sender, size, msgId, info);
 			}
 			break;
 		case Command.CMD_REDIRECT:

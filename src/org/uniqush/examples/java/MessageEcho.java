@@ -28,13 +28,13 @@ import org.uniqush.client.MessageHandler;
 
 class MessageEcho implements MessageHandler {
 	private MessageCenter center;
-	
+
 	public MessageEcho(MessageCenter center) {
 		this.center = center;
 	}
-	
+
 	private void printMap(Map<String, String> header) {
-		Iterator<Entry<String,String>> iter = header.entrySet().iterator();
+		Iterator<Entry<String, String>> iter = header.entrySet().iterator();
 		while (iter.hasNext()) {
 			Entry<String, String> entry = iter.next();
 			System.out.printf("[%s=%s]", entry.getKey(), entry.getValue());
@@ -47,7 +47,8 @@ class MessageEcho implements MessageHandler {
 	}
 
 	@Override
-	public void onMessageFromServer(String dstService, String dstUser, String id, Message msg) {
+	public void onMessageFromServer(String dstService, String dstUser,
+			String id, Message msg) {
 		System.out.printf("Message Received from server with id %s: ", id);
 		printMessage(msg);
 		System.out.println();
@@ -63,12 +64,13 @@ class MessageEcho implements MessageHandler {
 	}
 
 	@Override
-	public void onMessageFromUser(String dstService, String dstUser, String service, String username, String id,
-			Message msg) {
-		System.out.printf("Message Received from [service=%s] %s with id %s:", service, username, id);
+	public void onMessageFromUser(String dstService, String dstUser,
+			String service, String username, String id, Message msg) {
+		System.out.printf("Message Received from [service=%s] %s with id %s:",
+				service, username, id);
 		printMessage(msg);
 		System.out.println();
-		
+
 		try {
 			this.center.sendMessageToUser(service, username, msg, 3600);
 		} catch (IOException e) {
@@ -81,9 +83,11 @@ class MessageEcho implements MessageHandler {
 	}
 
 	@Override
-	public void onMessageDigestFromServer(String dstService, String dstUser, int size, String id,
-			Map<String, String> parameters) {
-		System.out.printf("received message digest from server: size=%d, id=%s\n", size, id);
+	public void onMessageDigestFromServer(boolean online, String dstService,
+			String dstUser, int size, String id, Map<String, String> parameters) {
+		System.out.printf(
+				"received message digest from server: size=%d, id=%s\n", size,
+				id);
 		try {
 			this.center.requestMessage(id);
 		} catch (InterruptedException e) {
@@ -97,9 +101,12 @@ class MessageEcho implements MessageHandler {
 	}
 
 	@Override
-	public void onMessageDigestFromUser(String dstService, String dstUser, String service, String username,
-			int size, String id, Map<String, String> parameters) {
-		System.out.printf("received message digest from %s:%s: size=%d, id=%s\n", service, username, size, id);
+	public void onMessageDigestFromUser(boolean online, String dstService,
+			String dstUser, String service, String username, int size,
+			String id, Map<String, String> parameters) {
+		System.out.printf(
+				"received message digest from %s:%s: size=%d, id=%s\n",
+				service, username, size, id);
 		try {
 			this.center.requestMessage(id);
 		} catch (InterruptedException e) {
